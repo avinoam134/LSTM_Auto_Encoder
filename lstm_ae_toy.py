@@ -2,7 +2,7 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 import torch.optim as optim
-import argparse
+from Utils import get_optimizer, split_dataset, parse_args
 import random
 import numpy as np
 
@@ -49,18 +49,6 @@ def test(model, test_loader, criterion):
     average_test_loss = test_loss / len(test_loader)
     return average_test_loss
 
-
-def get_optimizer(optimizer_name, model, learning_rate):
-
-    optimizers = {
-    'Adam': optim.Adam,
-    'SGD': optim.SGD
-    }
-
-    if optimizer_name in optimizers:
-        return optimizers[optimizer_name](model.parameters(), lr=learning_rate)
-    else:
-        raise ValueError('Invalid optimizer')
     
 
 def generate_syntethic_data(num_sequences=10000, sequence_length=50):
@@ -73,33 +61,11 @@ def generate_syntethic_data(num_sequences=10000, sequence_length=50):
     dataset = torch.tensor(np.array(dataset), dtype=torch.float32)
     return dataset
 
-def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2):
-    dataset_size = len(dataset)
-    train_size = int(train_size * dataset_size)
-    test_size = int(test_size * dataset_size)
-    val_size = dataset_size - train_size - test_size
-    train_dataset, test_val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size + val_size])
-    test_dataset, val_dataset = torch.utils.data.random_split(test_val_dataset, [test_size, val_size])
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    return train_loader, test_loader, val_loader
 
 def load_syntethic_data(batch_size=128):
     dataset = generate_syntethic_data()
     train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
     return train_loader, test_loader, val_loader
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input_size', type=int, default=1)
-    parser.add_argument('--hidden_size', type=int, default=64)
-    parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--epochs', type=int, default=1000)
-    parser.add_argument('--learning_rate', type=float, default=0.001)
-    parser.add_argument('--gradient_clipping', type=float, default=1.0)
-    parser.add_argument('--optimizer', type=str, default='Adam')
-    return parser.parse_args()
 
 
 def init_train_and_validate(model, args, train_loader, val_loader):

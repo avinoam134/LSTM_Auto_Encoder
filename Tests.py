@@ -1,4 +1,5 @@
 from lstm_ae_toy import LSTM_AE_TOY, generate_syntethic_data, load_syntethic_data
+from lstm_ae_mnist import LSTM_AE_MNIST, get_train_test_loaders
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
@@ -12,7 +13,7 @@ def P1_Q1_plot_signal_vs_time():
     plt.show()
 
 
-def find_best_perfoming_model(dry_run=False):
+def find_best_perfoming_toy_model(dry_run=False):
     if dry_run and os.path.exists('lstm_ae_toy_model.pth'):
         return torch.load('lstm_ae_toy_model.pth').eval()
     learning_rates = [0.001, 0.01, 0.1]
@@ -44,8 +45,8 @@ def find_best_perfoming_model(dry_run=False):
     torch.save(best_model, 'lstm_ae_toy_model.pth')
     return best_model
 
-def Q2_select_hyperparameters_and_train_model():
-    model = find_best_perfoming_model(dry_run=True)
+def P1_Q2_select_hyperparameters_and_train_model():
+    model = find_best_perfoming_toy_model(dry_run=True)
     _, test_loader, _ = load_syntethic_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[0].unsqueeze(-1)]
@@ -62,9 +63,36 @@ def Q2_select_hyperparameters_and_train_model():
         ax[i].legend(['Original', 'Reconstruction'], loc='upper right')
     plt.show()
 
+def get_trained_mnist_model(dry_run=False):
+    if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
+        return torch.load('lstm_ae_mnist_model.pth').eval()
+    result = subprocess.run(['python3', 'lstm_ae_mnist.py',
+                    '--input_size', str(28),
+                    '--epochs', str(10)],
+                    text=True, capture_output=True)
+    return torch.load('lstm_ae_mnist_model.pth').eval()
+    
+def P2_Q1_reconstruct_mnist_images():
+    model = get_trained_mnist_model(dry_run=True)
+    _, test_loader = get_train_test_loaders(128)
+    #make test_samples contain 2 single samples from the test_loader:
+    test_samples = [next(iter(test_loader))[0], next(iter(test_loader))[0]]
+    #make test samples as a tensor:
+    test_samples = torch.tensor(np.array(test_samples))
+    #make test_samples_reconstruction contain the reconstruction of the samples in test_samples:
+    test_samples_reconstruction, _ = model(test_samples)
+    #plot the original and reconstructed samples on the same plot (side by side):
+    fig, ax = plt.subplots(1, 2)
+    for i in range(2):
+        ax[i].set_title(f"Sample {i+1}")
+        ax[i].imshow(test_samples[i].detach().numpy().reshape(28,28), cmap='gray')
+        ax[i].imshow(test_samples_reconstruction[i].detach().numpy().reshape(28,28), cmap='gray', alpha=0.5)
+        ax[i].legend(['Original', 'Reconstruction'], loc='upper right')
+    plt.show()
+
 
 def main():
-    Q2_select_hyperparameters_and_train_model()
+    P2_Q1_reconstruct_mnist_images()
 
 if __name__ == '__main__':
     main()
