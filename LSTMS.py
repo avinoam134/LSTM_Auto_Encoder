@@ -1,7 +1,6 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-import numpy as np
 from Trainers import Basic_Trainer, Classifier_Trainer
 
 '''basic LSTM AE as in the diagram. used in lstm_ae_toy.py and as a basis to other models'''
@@ -26,9 +25,9 @@ class LSTM_AE(nn.Module):
 
 '''AE with classification based SOLELY on the original image (single linear layer for classification).
 Used as a benchmark for the other models (~90% accuracy on MNIST).'''
-class LSTM_AE_CLASSIFIER(nn.Module):
+class LSTM_AE_CLASSIFIER_V1(nn.Module):
     def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER, self).__init__()
+        super(LSTM_AE_CLASSIFIER_V1, self).__init__()
         self.lstm_ae = LSTM_AE(input_size, hidden_size, layers)
         self.classifier = nn.Linear(input_size**2, 10)
 
@@ -50,9 +49,9 @@ class LSTM_AE_CLASSIFIER_V2 (nn.Module):
         classification = self.classifier(dec[:, -1, :])
         return dec, classification
     
-class LSTM_AE_CLASSIFIER_V3 (nn.Module):
+class LSTM_AE_CLASSIFIER_V3_Experimental (nn.Module):
     def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER_V3, self).__init__()
+        super(LSTM_AE_CLASSIFIER_V3_Experimental, self).__init__()
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.layers = layers
@@ -69,9 +68,9 @@ class LSTM_AE_CLASSIFIER_V3 (nn.Module):
         classification = self.classifier(enc[:, -1, :])
         return dec, classification
 
-class LSTM_AE_CLASSIFIER_V4 (nn.Module):
+class LSTM_AE_CLASSIFIER_V3 (nn.Module):
     def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER_V4, self).__init__()
+        super(LSTM_AE_CLASSIFIER_V3, self).__init__()
         self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
         self.classifier_ae = LSTM_AE(input_size, hidden_size, layers)
         self.classifier = nn.Linear(input_size, 10)
@@ -82,9 +81,9 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
         classification = self.classifier(classification[:, -1, :])
         return dec, classification
     
-class LSTM_AE_CLASSIFIER_V5 (nn.Module):
+class LSTM_AE_CLASSIFIER_V4_Experimental (nn.Module):
     def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER_V5, self).__init__()
+        super(LSTM_AE_CLASSIFIER_V4_Experimental, self).__init__()
         self.hidden_size = hidden_size
         self.input_size = input_size
         self.layers = layers
@@ -103,13 +102,15 @@ class LSTM_AE_CLASSIFIER_V5 (nn.Module):
         classification = self.classifier(enc_clas[:, -1, :])
         return dec, classification
     
-class LSTM_AE_CLASSIFIER_V6 (nn.Module):
+class LSTM_AE_CLASSIFIER_V4 (nn.Module):
     def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER_V6, self).__init__()
+        super(LSTM_AE_CLASSIFIER_V4, self).__init__()
         self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
         self.classifier_ae = LSTM_AE(input_size, hidden_size, layers)
         self.classifier = nn.Sequential(
-            
+            nn.Linear(input_size, input_size),
+            nn.ReLU(),
+            nn.Linear(input_size, 10)
         )
 
     def forward(self, x):
@@ -120,56 +121,23 @@ class LSTM_AE_CLASSIFIER_V6 (nn.Module):
     
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def get_model_and_trainer(model_name, input_size, hidden_size):
+    clas_trainer = Classifier_Trainer(nn.MSELoss(), nn.CrossEntropyLoss())
+    basic_trainer = Basic_Trainer(nn.MSELoss())
     if model_name == 'LSTM_AE':
-        return LSTM_AE(input_size, hidden_size, 1), Basic_Trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER':
-        return LSTM_AE_CLASSIFIER(input_size, hidden_size, 1), Classifier_Trainer
+        return LSTM_AE(input_size, hidden_size, 1), basic_trainer
+    elif model_name == 'LSTM_AE_CLASSIFIER_V1':
+        return LSTM_AE_CLASSIFIER_V1(input_size, hidden_size, 1), clas_trainer
     elif model_name == 'LSTM_AE_CLASSIFIER_V2':
-        return LSTM_AE_CLASSIFIER_V2(input_size, hidden_size, 1), Classifier_Trainer
+        return LSTM_AE_CLASSIFIER_V2(input_size, hidden_size, 1), clas_trainer
     elif model_name == 'LSTM_AE_CLASSIFIER_V3':
-        return LSTM_AE_CLASSIFIER_V3(input_size, hidden_size, 1), Classifier_Trainer
+        return LSTM_AE_CLASSIFIER_V3(input_size, hidden_size, 1), clas_trainer
     elif model_name == 'LSTM_AE_CLASSIFIER_V4':
-        return LSTM_AE_CLASSIFIER_V4(input_size, hidden_size, 1), Classifier_Trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V5':
-        return LSTM_AE_CLASSIFIER_V5(input_size, hidden_size, 1), Classifier_Trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V6':
-        return LSTM_AE_CLASSIFIER_V6(input_size, hidden_size, 1), Classifier_Trainer
+        return LSTM_AE_CLASSIFIER_V4(input_size, hidden_size, 1), clas_trainer
+    elif model_name == 'LSTM_AE_CLASSIFIER_V3_Experimental':
+        return LSTM_AE_CLASSIFIER_V3_Experimental(input_size, hidden_size, 1), clas_trainer
+    elif model_name == 'LSTM_AE_CLASSIFIER_V4_Experimental':
+        return LSTM_AE_CLASSIFIER_V4_Experimental(input_size, hidden_size, 1), clas_trainer
+
     else:
         raise ValueError('Invalid model name')
