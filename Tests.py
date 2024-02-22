@@ -92,11 +92,11 @@ def find_best_mnist_hyperparams(model = 'LSTM_AE_CLASSIFIER_V3'):
                                         '--model', model],
                                         text=True, capture_output=True)
                 cur_acc = float(result.stdout)
-                print (f'iteration {i}.{j}.{k}:\n learning_rate: {learning_rate}, hidden_state_size: {hidden_state_size}, gradient_clip: {gradient_clip}, final_loss: {curr_loss}')
+                print (f'iteration {i}.{j}.{k}:\n learning_rate: {learning_rate}, hidden_state_size: {hidden_state_size}, gradient_clip: {gradient_clip}, final_accuracy: {cur_acc}')
                 if cur_acc > best_acc:
                     best_acc = cur_acc
                     best_params = (learning_rate, hidden_state_size, gradient_clip)
-                    best_model = torch.load('lstm_ae_toy_model.pth').eval()
+                    best_model = torch.load('lstm_ae_mnist_model.pth').eval()
 
     print (f'grid search done. best accuracy: {best_acc}. learning_rate: {best_params[0]}, hidden_state_size: {best_params[1]}, gradient_clip: {best_params[2]}')
     torch.save(best_model, 'lstm_ae_mnist_model.pth')
@@ -109,10 +109,10 @@ def find_best_reconstruction_to_classification_ratio():
     for ratio in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
         result = subprocess.run(['python3', 'lstm_ae_mnist.py',
                     '--input_size', str(28),
-                    '--hidden_size', str(16),
+                    '--hidden_size', str(8),
                     '--epochs', str(10),
                     '--reconstruction_dominance', str(ratio),
-                    '--model', 'LSTM_AE_CLASSIFIER_V2'],
+                    '--model', 'LSTM_AE_CLASSIFIER_V3'],
                     text=True, capture_output=True)
         cur_acc = float(result.stdout)
         if cur_acc > best_acc:
@@ -120,19 +120,37 @@ def find_best_reconstruction_to_classification_ratio():
             best_acc = cur_acc
             best_model = torch.load('lstm_ae_mnist_model.pth').eval()
     torch.save(best_model, 'lstm_ae_mnist_model.pth')
-    return best_ratio, best_acc
+    print (f'grid search done. best ratio: {best_ratio}. accuracy: {best_acc}')
+    return best_model, best_acc
+
+def find_best_mnist_model():
+    models = [f'LSTM_AE_CLASSIFIER_V{i}' for i in range(1,5)]
+    best_acc = 0
+    best_model_obj = None
+    best_model = ''
+    for model in models:
+        model_obj, acc = get_best_mnist_model(dry_run=False, model = model)
+        if acc > best_acc:
+            best_acc = acc
+            best_model = model
+            best_model_obj = model_obj
+        print (f'model: {model}. accuracy: {acc}')
+    print (f'grid search done. best model: {best_model}. accuracy: {best_acc}')
+    return best_model_obj, best_acc
 
 
 
-def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V3'):
+def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V3', classify = True):
     if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
         return torch.load('lstm_ae_mnist_model.pth').eval(), 0.99
     input_size = 28
-    hidden_size = 16
+    hidden_size = 8
     learning_rate = 0.01
-    gradient_clipping = 1
+    gradient_clipping = 5
     optimizer = 'Adam'
     reconstruction_dominance = 0.5
+    if not classify:
+        reconstruction_dominance=1
     result = subprocess.run(['python3', 'lstm_ae_mnist.py',
                     '--input_size', str(input_size),
                     '--hidden_size', str(hidden_size),
@@ -144,33 +162,34 @@ def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = '
                     '--reconstruction_dominance', str(reconstruction_dominance),
                     '--model', model],
                     text=True, capture_output=True)
-    return torch.load('lstm_ae_mnist_model.pth').eval(), result.stdout
+    return torch.load('lstm_ae_mnist_model.pth').eval(), float(result.stdout)
     
 
-def P2_Q1_reconstruct_mnist_images():
-    model, loss = get_best_mnist_model(dry_run=False, model = 'LSTM_AE')
-    print (f'final loss: {loss}')
+def P2_Q1_reconstruct_mnist_images(model = None):
+    if model is None:
+        model, _ = get_best_mnist_model(dry_run=True, model = 'LSTM_AE_CLASSIFIER_V1')
     _, test_loader = load_MNIST_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples, _ = next(iter(test_loader))
     test_samples_squeezed = test_samples.squeeze(1)
     #make test_samples_reconstruction contain the reconstruction of the samples in test_samples:
-    print(model)
-    test_samples_reconstruction = model(test_samples_squeezed)
-    recon = test_samples_reconstruction[:2].detach().numpy().reshape(2,28,28)
+    test_samples_reconstruction, _ = model(test_samples_squeezed)
+    recon = test_samples_reconstruction[:3].detach().numpy().reshape(3,28,28)
     #plot the original and reconstructed samples on the same plot (side by side):
-    fig, ax = plt.subplots(2, 2)
-    for i in range(2):
-        ax[i,0].set_title(f"Sample {i+1}")
-        ax[i,1].set_title(f"Reconstruction {i+1}")
-        ax[i,0].imshow(test_samples[i].squeeze(0), cmap='gray')
-        ax[i,1].imshow(recon[i], cmap='gray')
+    fig, ax = plt.subplots(2, 3)
+    for i in range(3):
+        ax[0,i].set_title(f"Sample {i+1}")
+        ax[1,i].set_title(f"Reconstruction {i+1}")
+        ax[0,i].imshow(test_samples[i].squeeze(0), cmap='gray')
+        ax[1,i].imshow(recon[i], cmap='gray')
     plt.show()
 
 
 
 def main():
-    P2_Q1_reconstruct_mnist_images()
+    best_model, _ = find_best_mnist_model()
+    P2_Q1_reconstruct_mnist_images(best_model)
+
 
 
 if __name__ == '__main__':

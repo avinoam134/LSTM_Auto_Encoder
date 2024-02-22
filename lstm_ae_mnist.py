@@ -10,12 +10,8 @@ def main():
     train_loader, test_loader = load_MNIST_data(args.batch_size)
     optimizer = get_optimizer(args.optimizer, model, args.learning_rate)
     trainer.train(model, train_loader, optimizer, args.epochs, args.gradient_clipping, args.reconstruction_dominance)
-    if args.model=='AE_LSTM':
-        loss = trainer.test(model, test_loader)
-        print (loss)
-    else:
-        _, accuracy = trainer.test(model, test_loader, args.reconstruction_dominance)
-        print(accuracy)
+    _, accuracy = trainer.test(model, test_loader, args.reconstruction_dominance)
+    print(accuracy)
     torch.save(model, 'lstm_ae_mnist_model.pth')
     
 

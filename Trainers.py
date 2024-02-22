@@ -8,19 +8,19 @@ class Basic_Trainer:
     def __init__(self, criterion):
         self.criterion = criterion
 
-    def train(self, model, optimizer, train_loader, epochs, gradient_clipping):
+    def train(self, model, train_loader, optimizer, epochs, gradient_clipping, _):
         model.train()
         all_losses = []
         for epoch in range(epochs):
             epoch_losses = []
-            for batch in train_loader:
+            for batch, _ in train_loader:
                 batch = batch.unsqueeze(-1)
                 optimizer.zero_grad()
                 outputs = model(batch)
                 loss = self.criterion(outputs, batch)
                 epoch_losses.append(loss.item())
                 loss.backward()
-                clip.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
+                clip.clip_grad_norm_(model.parameters(), gradient_clipping)
                 optimizer.step()
             all_losses.append(sum(epoch_losses)/len(epoch_losses))
         return all_losses
@@ -64,7 +64,7 @@ class Classifier_Trainer:
                 epoch_losses.append(loss.item())
                 # Backpropagation and optimization
                 loss.backward()
-                clip.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
+                clip.clip_grad_norm_(model.parameters(), gradient_clipping)
                 optimizer.step()
                 #print(f'epoch:{epoch}, itertaion: {}')
             all_losses.append(epoch_losses)
