@@ -6,6 +6,7 @@ import argparse
 import random
 import numpy as np
 
+
 def get_optimizer(optimizer_name, model, learning_rate):
 
     optimizers = {
@@ -18,7 +19,7 @@ def get_optimizer(optimizer_name, model, learning_rate):
     else:
         raise ValueError('Invalid optimizer')
     
-
+    
 
 def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2):
     dataset_size = len(dataset)
@@ -35,11 +36,13 @@ def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_size', type=int, default=1)
+    parser.add_argument('--input_size', type=int, default=28)
     parser.add_argument('--hidden_size', type=int, default=16)
     parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--learning_rate', type=float, default=0.1)
     parser.add_argument('--gradient_clipping', type=float, default=5)
     parser.add_argument('--optimizer', type=str, default='Adam')
+    parser.add_argument('--reconstruction_dominance', type=float, default=0.5)
+    parser.add_argument('--model', type=str, default='LSTM_AE_CLASSIFIER_V2')
     return parser.parse_args()

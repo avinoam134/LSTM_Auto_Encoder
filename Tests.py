@@ -1,5 +1,5 @@
 from lstm_ae_toy import LSTM_AE_TOY, generate_syntethic_data, load_syntethic_data
-from lstm_ae_mnist import LSTM_AE_MNIST, get_train_test_loaders
+from lstm_ae_mnist import LSTM_AE_MNIST,LSTM_AE_MNIST_V2, LSTM_AE_MNIST_V3, get_train_test_loaders
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
@@ -63,32 +63,60 @@ def P1_Q2_select_hyperparameters_and_train_model():
         ax[i].legend(['Original', 'Reconstruction'], loc='upper right')
     plt.show()
 
-def get_trained_mnist_model(dry_run=False):
+
+def get_reconstruction_mnist_model(dry_run=False, model = 'LSTM_AE_MNIST_V2'):
     if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
         return torch.load('lstm_ae_mnist_model.pth').eval()
     result = subprocess.run(['python3', 'lstm_ae_mnist.py',
                     '--input_size', str(28),
-                    '--epochs', str(10)],
+                    '--hidden_size', str(16),
+                    '--epochs', str(10),
+                    '--reconstruction_dominance', str(0.5),
+                    '--model', model],
                     text=True, capture_output=True)
-    return torch.load('lstm_ae_mnist_model.pth').eval()
+    return torch.load('lstm_ae_mnist_model.pth').eval(), result.stdout
     
 def P2_Q1_reconstruct_mnist_images():
-    model = get_trained_mnist_model(dry_run=True)
+    model, acc = get_reconstruction_mnist_model('LSTM_AE_MNIST')
+    print (f'final accuracy: {acc}')
+    model = torch.load('lstm_ae_mnist_model.pth').eval()
     _, test_loader = get_train_test_loaders(128)
     #make test_samples contain 2 single samples from the test_loader:
-    test_samples = [next(iter(test_loader))[0], next(iter(test_loader))[0]]
-    #make test samples as a tensor:
-    test_samples = torch.tensor(np.array(test_samples))
+    test_samples, _ = next(iter(test_loader))
+    test_samples_squeezed = test_samples.squeeze(1)
     #make test_samples_reconstruction contain the reconstruction of the samples in test_samples:
-    test_samples_reconstruction, _ = model(test_samples)
+    test_samples_reconstruction, _ = model(test_samples_squeezed)
+    recon = test_samples_reconstruction[:2].detach().numpy().reshape(2,28,28)
     #plot the original and reconstructed samples on the same plot (side by side):
-    fig, ax = plt.subplots(1, 2)
+    fig, ax = plt.subplots(2, 2)
     for i in range(2):
-        ax[i].set_title(f"Sample {i+1}")
-        ax[i].imshow(test_samples[i].detach().numpy().reshape(28,28), cmap='gray')
-        ax[i].imshow(test_samples_reconstruction[i].detach().numpy().reshape(28,28), cmap='gray', alpha=0.5)
-        ax[i].legend(['Original', 'Reconstruction'], loc='upper right')
+        ax[i,0].set_title(f"Sample {i+1}")
+        ax[i,1].set_title(f"Reconstruction {i+1}")
+        #make the images wider and shorter:
+
+        ax[i,0].imshow(test_samples[i].squeeze(0), cmap='gray')
+        ax[i,1].imshow(np.rot90(recon[i], 0), cmap='gray')
     plt.show()
+
+
+def find_best_perfoming_mnist_model():
+    best_acc = 0
+    best_ratio=0
+    for ratio in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
+        result = subprocess.run(['python3', 'lstm_ae_mnist.py',
+                    '--input_size', str(28),
+                    '--hidden_size', str(16),
+                    '--epochs', str(10),
+                    '--reconstruction_dominance', str(ratio),
+                    '--model', 'LSTM_AE_MNIST_V2'],
+                    text=True, capture_output=True)
+        cur_acc = float(result.stdout)
+        if cur_acc > best_acc:
+            best_ratio = ratio
+            best_acc = cur_acc
+            best_model = torch.load('lstm_ae_mnist_model.pth').eval()
+    torch.save(best_model, 'lstm_ae_mnist_model.pth')
+    return best_ratio, best_acc
 
 
 def main():
