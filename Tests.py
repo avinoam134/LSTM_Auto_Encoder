@@ -1,5 +1,7 @@
-from lstm_ae_toy import LSTM_AE_TOY, generate_syntethic_data, load_syntethic_data
-from lstm_ae_mnist import LSTM_AE_MNIST,LSTM_AE_MNIST_V2, LSTM_AE_MNIST_V3, get_train_test_loaders
+import lstm_ae_mnist, lstm_ae_toy
+import torch.nn as nn
+from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER, LSTM_AE_CLASSIFIER_V2
+from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
@@ -19,21 +21,25 @@ def find_best_perfoming_toy_model(dry_run=False):
     learning_rates = [0.001, 0.01, 0.1]
     hidden_state_sizes = [8, 16, 32]
     gradient_clipping = [1, 5]
-    epochs = 100
+    epochs = 20
     best_params = [0,0,0,0]
+    model = 'LSTM_AE'
+    optimizer = 'Adam'
     best_loss = float('inf')
     best_model = None
     for i,learning_rate in enumerate(learning_rates):
         for j,hidden_state_size in enumerate(hidden_state_sizes):
             for k,gradient_clip in enumerate(gradient_clipping):
                 result = subprocess.run(['python3', 'lstm_ae_toy.py',
-                                         '--input_size', '1',
-                                        '--optimizer', 'Adam',
+                                         '--input_size', str(1),
+                                        '--optimizer', optimizer,
                                         '--learning_rate', str(learning_rate),
                                         '--hidden_size', str(hidden_state_size),
                                         '--epochs', str(epochs),
-                                        '--gradient_clipping', str(gradient_clip)],
+                                        '--gradient_clipping', str(gradient_clip),
+                                        '--model', model],
                                         text=True, capture_output=True)
+                print (result.stderr)
                 curr_loss = float(result.stdout)
                 print (f'iteration {i}.{j}.{k}:\n learning_rate: {learning_rate}, hidden_state_size: {hidden_state_size}, gradient_clip: {gradient_clip}, final_loss: {curr_loss}')
                 if curr_loss < best_loss:
@@ -46,7 +52,7 @@ def find_best_perfoming_toy_model(dry_run=False):
     return best_model
 
 def P1_Q2_select_hyperparameters_and_train_model():
-    model = find_best_perfoming_toy_model(dry_run=True)
+    model = find_best_perfoming_toy_model(dry_run=False)
     _, test_loader, _ = load_syntethic_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[0].unsqueeze(-1)]
@@ -64,7 +70,7 @@ def P1_Q2_select_hyperparameters_and_train_model():
     plt.show()
 
 
-def get_reconstruction_mnist_model(dry_run=False, model = 'LSTM_AE_MNIST_V2'):
+def get_reconstruction_mnist_model(dry_run=False, model = 'LSTM_AE_CLASSIFIER_V4'):
     if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
         return torch.load('lstm_ae_mnist_model.pth').eval()
     result = subprocess.run(['python3', 'lstm_ae_mnist.py',
@@ -74,13 +80,15 @@ def get_reconstruction_mnist_model(dry_run=False, model = 'LSTM_AE_MNIST_V2'):
                     '--reconstruction_dominance', str(0.5),
                     '--model', model],
                     text=True, capture_output=True)
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", result.stderr)
+    print (result.stdout)
     return torch.load('lstm_ae_mnist_model.pth').eval(), result.stdout
     
 def P2_Q1_reconstruct_mnist_images():
-    model, acc = get_reconstruction_mnist_model('LSTM_AE_MNIST')
+    model, acc = get_reconstruction_mnist_model()
     print (f'final accuracy: {acc}')
     model = torch.load('lstm_ae_mnist_model.pth').eval()
-    _, test_loader = get_train_test_loaders(128)
+    _, test_loader = load_MNIST_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples, _ = next(iter(test_loader))
     test_samples_squeezed = test_samples.squeeze(1)
@@ -95,8 +103,44 @@ def P2_Q1_reconstruct_mnist_images():
         #make the images wider and shorter:
 
         ax[i,0].imshow(test_samples[i].squeeze(0), cmap='gray')
-        ax[i,1].imshow(np.rot90(recon[i], 0), cmap='gray')
+        ax[i,1].imshow(recon[i], cmap='gray')
     plt.show()
+
+
+
+def main():
+    P2_Q1_reconstruct_mnist_images()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def find_best_perfoming_mnist_model():
@@ -108,7 +152,7 @@ def find_best_perfoming_mnist_model():
                     '--hidden_size', str(16),
                     '--epochs', str(10),
                     '--reconstruction_dominance', str(ratio),
-                    '--model', 'LSTM_AE_MNIST_V2'],
+                    '--model', 'LSTM_AE_CLASSIFIER_V2'],
                     text=True, capture_output=True)
         cur_acc = float(result.stdout)
         if cur_acc > best_acc:
@@ -117,10 +161,6 @@ def find_best_perfoming_mnist_model():
             best_model = torch.load('lstm_ae_mnist_model.pth').eval()
     torch.save(best_model, 'lstm_ae_mnist_model.pth')
     return best_ratio, best_acc
-
-
-def main():
-    P2_Q1_reconstruct_mnist_images()
 
 if __name__ == '__main__':
     main()

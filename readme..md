@@ -14,3 +14,9 @@
 # Q2:
 - show a run of the V1 MNIST preformance with explanations of the exploration of reconstruction/classification loss ratio, layers of MNIST, etc. 
 - show a run of the other versions with different places of classifications.
+
+
+at the end:
+- make all dry_runs=True and organise Tests.py
+- remove prints
+- change default parameters for all models

@@ -22,17 +22,17 @@ class Basic_Trainer:
             all_losses.append(sum(epoch_losses)/len(epoch_losses))
         return all_losses
 
-def test(model, test_loader, criterion):
-    model.eval() 
-    test_loss = 0
-    with torch.no_grad():
-        for data in test_loader:
-            data = data.unsqueeze(-1)
-            outputs = model(data)
-            loss = criterion(outputs, data)
-            test_loss += loss.item()
-    average_test_loss = test_loss / len(test_loader)
-    return average_test_loss
+    def test(model, test_loader, criterion):
+        model.eval() 
+        test_loss = 0
+        with torch.no_grad():
+            for data in test_loader:
+                data = data.unsqueeze(-1)
+                outputs = model(data)
+                loss = criterion(outputs, data)
+                test_loss += loss.item()
+        average_test_loss = test_loss / len(test_loader)
+        return average_test_loss
 
 
 class Classifier_Trainer:
