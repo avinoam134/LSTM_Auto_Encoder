@@ -186,9 +186,18 @@ def P2_Q1_reconstruct_mnist_images(model = None):
 
 
 
+
+
+
+
+
+
+
+
+
+
 def main():
-    best_model, _ = find_best_mnist_model()
-    P2_Q1_reconstruct_mnist_images(best_model)
+    P2_Q1_reconstruct_mnist_images()
 
 
 
