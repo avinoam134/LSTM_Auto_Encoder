@@ -1,6 +1,7 @@
 import lstm_ae_mnist, lstm_ae_toy
 from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
 from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
+from Utils import load_script_out_from_json
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
@@ -139,8 +140,7 @@ def find_best_mnist_model():
     return best_model_obj, best_acc
 
 
-
-def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V3', classify = True):
+def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V4', classify = True):
     if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
         return torch.load('lstm_ae_mnist_model.pth').eval(), 0.99
     input_size = 28
@@ -185,21 +185,27 @@ def P2_Q1_reconstruct_mnist_images(model = None):
     plt.show()
 
 
-
-
-
-
-
-
-
-
-
+def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
+    _, _ = get_best_mnist_model(classify=False)
+    reconstructor_dict = load_script_out_from_json('scripts_out.json')
+    _, _ = get_best_mnist_model(classify=True)
+    classifier_dict = load_script_out_from_json('scripts_out.json')
+    fig, ax = plt.subplots(1,2)
+    ax[0].set_title('Reconstruction Architechture Loss')
+    ax[1].set_title('Classification Architecture Accuracy & Loss')
+    ax[0].plot(reconstructor_dict['losses'])
+    ax[1].plot(classifier_dict['losses'])
+    ax[1].plot(classifier_dict['accuracies'])
+    ax[0].set_xlabel('Epoch')
+    ax[1].set_xlabel('Epoch')
+    # create a legend for each axis
+    ax[0].legend(['Reconstruction Loss'], loc='upper right')
+    ax[1].legend(['Classification Loss', 'Classification Accuracy'], loc='center right')
+    plt.show()
 
 
 def main():
-    P2_Q1_reconstruct_mnist_images()
-
-
+    P2Q2_train_and_plot_mnist_classifier_and_reconstructor()
 
 if __name__ == '__main__':
     main()

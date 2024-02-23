@@ -1,5 +1,6 @@
 import torch.optim as optim
 import argparse
+import json
 
 def get_optimizer(optimizer_name, model, learning_rate):
 
@@ -25,3 +26,12 @@ def parse_args():
     parser.add_argument('--reconstruction_dominance', type=float, default=0.5)
     parser.add_argument('--model', type=str, default='LSTM_AE_CLASSIFIER_V3')
     return parser.parse_args()
+
+def save_script_out_to_json (data_dict, file_name = "scripts_out.json"):
+    with open(file_name, 'w') as f:
+        json.dump(data_dict, f)
+
+def load_script_out_from_json(file_name = "scripts_out.json"):
+    with open(file_name, 'r') as f:
+        return json.load(f)
+    

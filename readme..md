@@ -1,9 +1,7 @@
-1. find a winning model (98%)
-2. finish moving to ordered files:
-    - lstm_ae_mnist.py
-    - lstm_ae_toy.py - make sure it works
-    - remove un-necessary files
-    - Tests.py
+Q1: gather, clean and display data. input is limited to a single samle of max price for day
+Q2: train classic AE_MNIST on the data. use cross-training and test on regular batches
+Q3: icorporate prediction
+Q4: adjust into multi-step
 
 
 #Q1:
