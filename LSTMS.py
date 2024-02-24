@@ -114,6 +114,9 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
         )
 
     def forward(self, x):
+        #reshape x to match the the reconstructor input size:
+        #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
+        x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
         classification = self.classifier_ae(x)
         classification = self.classifier(classification[:, -1, :])
@@ -122,7 +125,7 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
 
 
 def get_model_and_trainer(model_name, input_size, hidden_size):
-    clas_trainer = Classifier_Trainer(nn.MSELoss(), nn.CrossEntropyLoss())
+    clas_trainer = Classifier_Trainer(nn.MSELoss(), nn.CrossEntropyLoss(), input_size)
     basic_trainer = Basic_Trainer(nn.MSELoss())
     if model_name == 'LSTM_AE':
         return LSTM_AE(input_size, hidden_size, 1), basic_trainer

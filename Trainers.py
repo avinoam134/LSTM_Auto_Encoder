@@ -1,4 +1,5 @@
 import torch
+import sys
 import torch.utils.data
 import torch.nn.utils as clip
 import numpy as np
@@ -39,9 +40,10 @@ class Basic_Trainer:
 
 
 class Classifier_Trainer:
-    def __init__(self, recon_criterion, classif_criterion):
+    def __init__(self, recon_criterion, classif_criterion, input_size=28):
         self.recon_criterion = recon_criterion
         self.classif_criterion = classif_criterion
+        self.input_size = input_size
 
     def train(self, model, train_loader, optimizer, epochs, gradient_clipping, recon_dominance):
         all_losses = []
@@ -53,12 +55,13 @@ class Classifier_Trainer:
                 model.train()
                 optimizer.zero_grad()
                 # Remove the extra dimension that represents the number of channels (1 in MNIST grayscale images)
-                images = images.squeeze(1) 
+                images = images.squeeze(1)
+                #print to stderr the shape of the images:
                 reconstructions, classifications = model(images)        
                 # Flatten reconstructions for loss calculation
-                reconstructions = reconstructions.reshape((-1, reconstructions.size(-1)))        
+                reconstructions = reconstructions.reshape((-1, self.input_size))        
                 # Compute reconstruction loss (MSE)
-                recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, images.size(-1))))        
+                recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, self.input_size)))        
                 # Compute classification loss (Cross-Entropy)
                 classif_loss = self.classif_criterion(classifications, labels)       
                 # Total loss
@@ -86,9 +89,9 @@ class Classifier_Trainer:
                 images = images.squeeze(1)# Swap dimensions to match LSTM input format
                 reconstructions, classifications = model(images)        
                 # Flatten reconstructions for loss calculation
-                reconstructions = reconstructions.reshape((-1, reconstructions.size(-1)))        
+                reconstructions = reconstructions.reshape((-1, self.input_size))        
                 # Compute reconstruction loss (MSE)
-                recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, images.size(-1))))        
+                recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, self.input_size)))        
                 # Compute classification loss (Cross-Entropy)
                 classif_loss = self.classif_criterion(classifications, labels)       
                 # Total loss
@@ -102,65 +105,3 @@ class Classifier_Trainer:
         accuracy = np.mean(np.array(batches_accuracy))
         return total_loss, accuracy
     
-# class Classifier_Trainer_With_Epochs_Lists:
-#     def __init__(self, recon_criterion, classif_criterion):
-#         self.recon_criterion = recon_criterion
-#         self.classif_criterion = classif_criterion
-
-#     def train(self, model, train_loader, optimizer, epochs, gradient_clipping, recon_dominance):
-#         all_losses = []
-#         all_accuracies = []
-#         for epoch in range(epochs):
-#             epoch_losses = []
-#             epoch_accuracies = []
-#             for images, labels in train_loader:
-#                 model.train()
-#                 optimizer.zero_grad()
-#                 # Remove the extra dimension that represents the number of channels (1 in MNIST grayscale images)
-#                 images = images.squeeze(1) 
-#                 reconstructions, classifications = model(images)        
-#                 # Flatten reconstructions for loss calculation
-#                 reconstructions = reconstructions.reshape((-1, reconstructions.size(-1)))        
-#                 # Compute reconstruction loss (MSE)
-#                 recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, images.size(-1))))        
-#                 # Compute classification loss (Cross-Entropy)
-#                 classif_loss = self.classif_criterion(classifications, labels)
-#                 batch_accuracy = (torch.argmax(classifications, 1) == labels).sum().item() / len(labels) 
-#                 epoch_accuracies.append(batch_accuracy)      
-#                 # Total loss
-#                 loss = (recon_dominance)*recon_loss + (1-recon_dominance)*classif_loss
-#                 epoch_losses.append(loss.item())
-#                 # Backpropagation and optimization
-#                 loss.backward()
-#                 clip.clip_grad_norm_(model.parameters(), gradient_clipping)
-#                 optimizer.step()
-#                 #print(f'epoch:{epoch}, itertaion: {}')
-#             all_accuracies.append(np.mean(np.array(epoch_accuracies)))
-#             all_losses.append(np.mean(np.array(epoch_losses)))
-#         return np.array(all_losses), np.array(all_accuracies)
-
-#     def test(self, model, test_loader, recon_dominance):
-#         model.eval()
-#         total_loss = 0.0
-#         batches_accuracy = []
-#         with torch.no_grad():
-#             for images, labels in test_loader:
-#                 # Reshape images for LSTM input (sequence length, batch size, input size)
-#                 images = images.squeeze(1)# Swap dimensions to match LSTM input format
-#                 reconstructions, classifications = model(images)        
-#                 # Flatten reconstructions for loss calculation
-#                 reconstructions = reconstructions.reshape((-1, reconstructions.size(-1)))        
-#                 # Compute reconstruction loss (MSE)
-#                 recon_loss = self.recon_criterion(reconstructions, images.reshape((-1, images.size(-1))))        
-#                 # Compute classification loss (Cross-Entropy)
-#                 classif_loss = self.classif_criterion(classifications, labels)       
-#                 # Total loss
-#                 loss = (recon_dominance)*recon_loss + (1-recon_dominance)*classif_loss
-#                 total_loss += loss.item()
-#                 # Predicted digits
-#                 predicted_batch = torch.argmax(classifications, 1)
-#                 batch_accuracy = (predicted_batch == labels).sum().item() / len(labels)
-#                 batches_accuracy.append(batch_accuracy)
-#         total_loss/=len(test_loader)
-#         accuracy = np.mean(np.array(batches_accuracy))
-#         return total_loss, accuracy

@@ -140,15 +140,10 @@ def find_best_mnist_model():
     return best_model_obj, best_acc
 
 
-def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V4', classify = True):
+def get_best_mnist_model(input_size = 28, hidden_size = 8,  epochs = 10, learning_rate = 0.01, gradient_clipping = 5, optimizer = 'Adam', reconstruction_dominance = 0.5,
+                         batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V4', classify = True):
     if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
-        return torch.load('lstm_ae_mnist_model.pth').eval(), 0.99
-    input_size = 28
-    hidden_size = 8
-    learning_rate = 0.01
-    gradient_clipping = 5
-    optimizer = 'Adam'
-    reconstruction_dominance = 0.5
+        return torch.load('lstm_ae_mnist_model.pth').eval(), 0.982
     if not classify:
         reconstruction_dominance=1
     result = subprocess.run(['python3', 'lstm_ae_mnist.py',
@@ -162,6 +157,8 @@ def get_best_mnist_model(epochs = 10, batch_size = 128, dry_run=False, model = '
                     '--reconstruction_dominance', str(reconstruction_dominance),
                     '--model', model],
                     text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
     return torch.load('lstm_ae_mnist_model.pth').eval(), float(result.stdout)
     
 
@@ -203,9 +200,31 @@ def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
     ax[1].legend(['Classification Loss', 'Classification Accuracy'], loc='center right')
     plt.show()
 
+def P2Q3_reconstruct_and_classify_over_1_input_size():
+    model, acc = get_best_mnist_model(input_size=1)
+    _, test_loader = load_MNIST_data(128)
+    #make test_samples contain 2 single samples from the test_loader:
+    test_samples, _ = next(iter(test_loader))
+    test_samples_squeezed = test_samples.squeeze(1)
+    #make test_samples_reconstruction contain the reconstruction of the samples in test_samples:
+    test_samples_reconstruction, _ = model(test_samples_squeezed)
+    recon = test_samples_reconstruction[:2].detach().numpy().reshape(2,28,28)
+    #plot the original and reconstructed samples on the same plot (side by side):
+    fig, ax = plt.subplots(2, 2)
+    #add a title for the entire plot:
+    fig.suptitle('Accuracy: ' + str(acc))
+    for i in range(2):
+        ax[0,i].set_title(f"Sample {i+1}")
+        ax[1,i].set_title(f"Reconstruction {i+1}")
+        ax[0,i].imshow(test_samples[i].squeeze(0), cmap='gray')
+        ax[1,i].imshow(recon[i], cmap='gray')
+    plt.show()
+
+
 
 def main():
-    P2Q2_train_and_plot_mnist_classifier_and_reconstructor()
+    _, acc = get_best_mnist_model()
+    print (acc)
 
 if __name__ == '__main__':
     main()
