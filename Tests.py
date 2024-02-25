@@ -1,12 +1,22 @@
-import lstm_ae_mnist, lstm_ae_toy
-from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
-from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
-from Utils import load_script_out_from_json
+import scripts.lstm_ae_mnist as lstm_ae_mnist, scripts.lstm_ae_toy as lstm_ae_toy
+from code.LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
+from code.Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
+from code.Utils import load_script_out_from_json
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import torch
 import os
+
+rel_out_path = os.path.join('.', 'outputs')
+rel_scrpt_path = os.path.join('.', 'scripts')
+scripts_out_path = os.path.join(rel_scrpt_path, 'scripts_out.json')
+toy_model_path = os.path.join(rel_out_path, 'lstm_ae_toy_model.pth')
+toy_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_toy.py')
+mnist_model_path = os.path.join(rel_out_path, 'lstm_ae_mnist_model.pth')
+mnist_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_mnist.py')
+snp_model_path = os.path.join(rel_out_path, 'lstm_ae_snp500_model.pth')
+snp_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_snp500.py')
 
 
 def P1_Q1_plot_signal_vs_time():
@@ -16,8 +26,9 @@ def P1_Q1_plot_signal_vs_time():
 
 
 def find_best_perfoming_toy_model(dry_run=False):
-    if dry_run and os.path.exists('lstm_ae_toy_model.pth'):
-        return torch.load('lstm_ae_toy_model.pth').eval()
+
+    if dry_run and os.path.exists(toy_model_path):
+        return torch.load(toy_model_path).eval()
     learning_rates = [0.001, 0.01, 0.1]
     hidden_state_sizes = [8, 16, 32]
     gradient_clipping = [1, 5]
@@ -30,7 +41,7 @@ def find_best_perfoming_toy_model(dry_run=False):
     for i,learning_rate in enumerate(learning_rates):
         for j,hidden_state_size in enumerate(hidden_state_sizes):
             for k,gradient_clip in enumerate(gradient_clipping):
-                result = subprocess.run(['python3', 'lstm_ae_toy.py',
+                result = subprocess.run(['python3', toy_script_path,
                                          '--input_size', str(1),
                                         '--optimizer', optimizer,
                                         '--learning_rate', str(learning_rate),
@@ -45,10 +56,10 @@ def find_best_perfoming_toy_model(dry_run=False):
                 if curr_loss < best_loss:
                     best_loss = curr_loss
                     best_params = (learning_rate, hidden_state_size, gradient_clip)
-                    best_model = torch.load('lstm_ae_toy_model.pth').eval()
+                    best_model = torch.load(toy_model_path).eval()
 
     print (f'grid search done. best validation loss: {best_loss}. learning_rate: {best_params[0]}, hidden_state_size: {best_params[1]}, gradient_clip: {best_params[2]}')
-    torch.save(best_model, 'lstm_ae_toy_model.pth')
+    torch.save(best_model, toy_model_path)
     return best_model
 
 def P1_Q2_select_hyperparameters_and_train_model():
@@ -83,7 +94,7 @@ def find_best_mnist_hyperparams(model = 'LSTM_AE_CLASSIFIER_V3'):
     for i,learning_rate in enumerate(learning_rates):
         for j,hidden_state_size in enumerate(hidden_state_sizes):
             for k,gradient_clip in enumerate(gradient_clipping):
-                result = subprocess.run(['python3', 'lstm_ae_mnist.py',
+                result = subprocess.run(['python3', mnist_script_path,
                                          '--input_size', str(28),
                                         '--optimizer', optimizer,
                                         '--learning_rate', str(learning_rate),
@@ -97,10 +108,10 @@ def find_best_mnist_hyperparams(model = 'LSTM_AE_CLASSIFIER_V3'):
                 if cur_acc > best_acc:
                     best_acc = cur_acc
                     best_params = (learning_rate, hidden_state_size, gradient_clip)
-                    best_model = torch.load('lstm_ae_mnist_model.pth').eval()
+                    best_model = torch.load(mnist_model_path).eval()
 
     print (f'grid search done. best accuracy: {best_acc}. learning_rate: {best_params[0]}, hidden_state_size: {best_params[1]}, gradient_clip: {best_params[2]}')
-    torch.save(best_model, 'lstm_ae_mnist_model.pth')
+    torch.save(best_model, mnist_model_path)
     return best_model
 
 
@@ -108,7 +119,7 @@ def find_best_reconstruction_to_classification_ratio():
     best_acc = 0
     best_ratio=0
     for ratio in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
-        result = subprocess.run(['python3', 'lstm_ae_mnist.py',
+        result = subprocess.run(['python3', mnist_script_path,
                     '--input_size', str(28),
                     '--hidden_size', str(8),
                     '--epochs', str(10),
@@ -119,8 +130,8 @@ def find_best_reconstruction_to_classification_ratio():
         if cur_acc > best_acc:
             best_ratio = ratio
             best_acc = cur_acc
-            best_model = torch.load('lstm_ae_mnist_model.pth').eval()
-    torch.save(best_model, 'lstm_ae_mnist_model.pth')
+            best_model = torch.load(mnist_model_path).eval()
+    torch.save(best_model, mnist_model_path)
     print (f'grid search done. best ratio: {best_ratio}. accuracy: {best_acc}')
     return best_model, best_acc
 
@@ -142,11 +153,11 @@ def find_best_mnist_model():
 
 def get_best_mnist_model(input_size = 28, hidden_size = 8,  epochs = 10, learning_rate = 0.01, gradient_clipping = 5, optimizer = 'Adam', reconstruction_dominance = 0.5,
                          batch_size = 128, dry_run=False, model = 'LSTM_AE_CLASSIFIER_V4', classify = True):
-    if dry_run and os.path.exists('lstm_ae_mnist_model.pth'):
-        return torch.load('lstm_ae_mnist_model.pth').eval(), 0.982
+    if dry_run and os.path.exists(mnist_model_path):
+        return torch.load(mnist_model_path).eval(), 0.982
     if not classify:
         reconstruction_dominance=1
-    result = subprocess.run(['python3', 'lstm_ae_mnist.py',
+    result = subprocess.run(['python3', mnist_script_path,
                     '--input_size', str(input_size),
                     '--hidden_size', str(hidden_size),
                     '--batch_size', str(batch_size),
@@ -159,7 +170,7 @@ def get_best_mnist_model(input_size = 28, hidden_size = 8,  epochs = 10, learnin
                     text=True, capture_output=True)
     print (result.stderr)
     print (result.stdout)
-    return torch.load('lstm_ae_mnist_model.pth').eval(), float(result.stdout)
+    return torch.load(mnist_model_path).eval(), float(result.stdout)
     
 
 def P2_Q1_reconstruct_mnist_images(model = None):
@@ -184,9 +195,9 @@ def P2_Q1_reconstruct_mnist_images(model = None):
 
 def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
     _, _ = get_best_mnist_model(classify=False)
-    reconstructor_dict = load_script_out_from_json('scripts_out.json')
+    reconstructor_dict = load_script_out_from_json(scripts_out_path)
     _, _ = get_best_mnist_model(classify=True)
-    classifier_dict = load_script_out_from_json('scripts_out.json')
+    classifier_dict = load_script_out_from_json(scripts_out_path)
     fig, ax = plt.subplots(1,2)
     ax[0].set_title('Reconstruction Architechture Loss')
     ax[1].set_title('Classification Architecture Accuracy & Loss')

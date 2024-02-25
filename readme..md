@@ -18,3 +18,7 @@ at the end:
 - make all dry_runs=True and organise Tests.py
 - remove prints
 - change default parameters for all models
+
+
+
+if i have 1 file called X with path ./A/X and a python script in ./B and i would like to import X to the script - how would i implement it so that it will be valid for all operating systems? 
