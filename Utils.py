@@ -29,12 +29,10 @@ def parse_args():
     return parser.parse_args()
 
 def save_script_out_to_json (data_dict, file_name = "scripts_out.json"):
-    full_path = os.join('..', 'outputs' , file_name)
-    with open(full_path, 'w') as f:
+    with open(file_name, 'w') as f:
         json.dump(data_dict, f)
 
 def load_script_out_from_json(file_name = "scripts_out.json"):
-    full_path = os.join('..', 'outputs' , file_name)
-    with open(full_path, 'r') as f:
+    with open(file_name, 'r') as f:
         return json.load(f)
     

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import random
 
-datas_path = os.path.join('..', 'data')
+
 
 def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2):
     dataset_size = len(dataset)
@@ -44,7 +44,7 @@ def load_MNIST_data(batch_size=128):
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
-    mnist_pth = os.path.join(datas_path, 'mnist_data')
+    mnist_pth = 'mnist_data'
     train_dataset = datasets.MNIST(root=mnist_pth, train=True, transform=transform, download=True)
     test_dataset = datasets.MNIST(root=mnist_pth, train=False, transform=transform, download=True)
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
@@ -52,7 +52,7 @@ def load_MNIST_data(batch_size=128):
     return train_loader, test_loader
 
 def generate_snp_data():
-    snp_path = os.path.join(datas_path, 'snp500', 'snp500.csv')
+    snp_path = os.path.join('snp500', 'snp500.csv')
     data = pd.read_csv(snp_path)
     data = data.dropna()
     return data

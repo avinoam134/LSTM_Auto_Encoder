@@ -1,7 +1,7 @@
 import torch
-from code.Utils import parse_args, get_optimizer, save_script_out_to_json, os
-from code.Data_Generators import load_MNIST_data
-from code.LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4, get_model_and_trainer
+from Utils import parse_args, get_optimizer, save_script_out_to_json, os
+from Data_Generators import load_MNIST_data
+from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4, get_model_and_trainer
 
 
 def main():
@@ -17,7 +17,7 @@ def main():
     save_script_out_to_json(results_dict)
     _, accuracy = trainer.test(model, test_loader, args.reconstruction_dominance)
     print(accuracy)
-    model_path = os.path.join('..', 'outputs','lstm_ae_mnist_model.pth') 
+    model_path = 'lstm_ae_mnist_model.pth'
     torch.save(model, model_path)
     
 

@@ -1,22 +1,21 @@
-import scripts.lstm_ae_mnist as lstm_ae_mnist, scripts.lstm_ae_toy as lstm_ae_toy
-from code.LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
-from code.Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
-from code.Utils import load_script_out_from_json
+
+from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
+from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
+from Utils import load_script_out_from_json
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import torch
 import os
 
-rel_out_path = os.path.join('.', 'outputs')
-rel_scrpt_path = os.path.join('.', 'scripts')
-scripts_out_path = os.path.join(rel_scrpt_path, 'scripts_out.json')
-toy_model_path = os.path.join(rel_out_path, 'lstm_ae_toy_model.pth')
-toy_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_toy.py')
-mnist_model_path = os.path.join(rel_out_path, 'lstm_ae_mnist_model.pth')
-mnist_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_mnist.py')
-snp_model_path = os.path.join(rel_out_path, 'lstm_ae_snp500_model.pth')
-snp_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_snp500.py')
+
+scripts_out_path = 'scripts_out.json'
+toy_model_path = 'lstm_ae_toy_model.pth'
+toy_script_path = 'lstm_ae_toy.py'
+mnist_model_path =  'lstm_ae_mnist_model.pth'
+mnist_script_path = 'lstm_ae_mnist.py'
+snp_model_path = 'lstm_ae_snp500_model.pth'
+snp_script_path = 'lstm_ae_snp500.py'
 
 
 def P1_Q1_plot_signal_vs_time():
@@ -199,6 +198,8 @@ def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
     _, _ = get_best_mnist_model(classify=True)
     classifier_dict = load_script_out_from_json(scripts_out_path)
     fig, ax = plt.subplots(1,2)
+    #add a title for the entire plot:
+    fig.suptitle('Accuracy: ' + str(format(classifier_dict['accuracies'][-1], ".2f"))  + '         Model: LSTM_AE_CLASSIFIER_V4' , color='red')
     ax[0].set_title('Reconstruction Architechture Loss')
     ax[1].set_title('Classification Architecture Accuracy & Loss')
     ax[0].plot(reconstructor_dict['losses'])
@@ -234,8 +235,7 @@ def P2Q3_reconstruct_and_classify_over_1_input_size():
 
 
 def main():
-    _, acc = get_best_mnist_model()
-    print (acc)
+    P2Q2_train_and_plot_mnist_classifier_and_reconstructor()
 
 if __name__ == '__main__':
     main()

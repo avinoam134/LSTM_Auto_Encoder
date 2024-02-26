@@ -9,12 +9,12 @@ class Basic_Trainer:
     def __init__(self, criterion):
         self.criterion = criterion
 
-    def train(self, model, train_loader, optimizer, epochs, gradient_clipping, _):
+    def train(self, model, train_loader, optimizer, epochs, gradient_clipping):
         model.train()
         all_losses = []
         for epoch in range(epochs):
             epoch_losses = []
-            for batch, _ in train_loader:
+            for batch in train_loader:
                 batch = batch.unsqueeze(-1)
                 optimizer.zero_grad()
                 outputs = model(batch)
