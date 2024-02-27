@@ -6,6 +6,8 @@ Q4: adjust into multi-step
 Q2:
 ###OPTION1####:
 try to move to data squence composed of a single date.
+####option2####:
+try to just feed the model with the table as it is
 
 
 Q3:
