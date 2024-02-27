@@ -1,6 +1,6 @@
 
 from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
-from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
+from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data, generate_snp_company_with_dates, load_snp_data
 from Utils import load_script_out_from_json
 import matplotlib.pyplot as plt
 import subprocess
@@ -233,9 +233,30 @@ def P2Q3_reconstruct_and_classify_over_1_input_size():
     plt.show()
 
 
+def P3Q1_show_snp500_data():
+    amazon = generate_snp_company_with_dates('AMZN')
+    googe = generate_snp_company_with_dates('GOOGL')
+    data_dict = {"AMZN": amazon, "GOOGL": googe}
+    #show 2 figures side by side of each comany's stock price over time:
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Stock Price vs. Date')
+    for i,name in enumerate(["AMZN", "GOOGL"]):
+        data = data_dict[name]
+        ax[i].plot(data[:,0], data[:,1], label=name)
+        ax[i].set_xlabel('Date')
+        ax[i].set_ylabel('Price')
+        ax[i].set_title(f'Price vs. Date - {name}')
+        ax[i].legend()
+        ax[i].tick_params(rotation=45) 
+    plt.tight_layout()
+    plt.show()
+
+
+
+
 
 def main():
-    P2Q2_train_and_plot_mnist_classifier_and_reconstructor()
+    P3Q1_show_snp500_data()
 
 if __name__ == '__main__':
     main()

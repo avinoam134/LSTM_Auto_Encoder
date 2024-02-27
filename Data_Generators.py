@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 import numpy as np
 import pandas as pd
 import random
+from datetime import datetime
 
 
 
@@ -51,11 +52,31 @@ def load_MNIST_data(batch_size=128):
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
-def generate_snp_data():
+
+def generate_snp_data(company=None):
     snp_path = os.path.join('snp500', 'snp500.csv')
     data = pd.read_csv(snp_path)
-    data = data.dropna()
-    return data
+    data['symbol'] = data['symbol'].astype(str)
+    if company is not None:
+        data = data[data['symbol'] == company]
+    data = data['high'].dropna()
+    return data.to_numpy()
 
-def load_snp_data(batch_size=128):
-    pass
+def convert_dates_to_integers(data):
+    converted = np.array([np.array([datetime.strptime(row[0], '%Y-%m-%d'), row[1]]) for row in data if row[0]!=np.nan and '0' in row[0]])
+    return converted
+
+def generate_snp_company_with_dates(company):
+    snp_path = os.path.join('snp500', 'snp500.csv')
+    data = pd.read_csv(snp_path)
+    data['symbol'] = data['symbol'].astype(str)
+    data['date'] = data['date'].astype(str)
+    data = data[data['symbol'] == company]
+    data = data[['date', 'high']].dropna()
+    return convert_dates_to_integers(data.to_numpy())
+
+def load_snp_data(company=None, batch_size=128):
+    data = generate_snp_data(company)
+    dataset = torch.tensor(data, dtype=torch.float32)
+    train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
+    return train_loader, test_loader, val_loader
