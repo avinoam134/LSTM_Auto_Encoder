@@ -1,4 +1,3 @@
-
 from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
 from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data, generate_snp_company_with_dates, load_snp_data
 from Utils import load_script_out_from_json
@@ -252,11 +251,30 @@ def P3Q1_show_snp500_data():
     plt.show()
 
 
+def P3Q2_reconstruct_snp500_data():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py'], text=True, capture_output=True)
+    print (result.stderr)
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    print (result.stdout)
+    data = load_snp_data('AMZN')
+    test_samples = data[:2]
+    test_samples_reconstruction = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Stock Price vs. Date')
+    for i in range(2):
+        ax[i].plot(test_samples[i], label='Original')
+        ax[i].plot(test_samples_reconstruction[i].detach().numpy(), label='Reconstruction')
+        ax[i].legend()
+    plt.show()
+
+
+
+
 
 
 
 def main():
-    P3Q1_show_snp500_data()
+    P3Q2_reconstruct_snp500_data()
 
 if __name__ == '__main__':
     main()

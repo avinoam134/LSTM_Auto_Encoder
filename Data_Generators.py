@@ -53,14 +53,26 @@ def load_MNIST_data(batch_size=128):
     return train_loader, test_loader
 
 
-def generate_snp_data(company=None):
+
+def generate_snp_data(company=None, sequence_length=50):
     snp_path = os.path.join('snp500', 'snp500.csv')
     data = pd.read_csv(snp_path)
     data['symbol'] = data['symbol'].astype(str)
     if company is not None:
         data = data[data['symbol'] == company]
-    data = data['high'].dropna()
-    return data.to_numpy()
+        data = data['high'].dropna().to_numpy()
+        data = company_to_sequences(data, sequence_length)
+    else:
+        symbols = set(data['symbol'])
+        #iterate the symbols and create a dataset for each symbol:
+        datasets = []
+        for symbol in symbols:
+            company_data = data[data['symbol'] == symbol]
+            company_data = company_data['high'].dropna().to_numpy()
+            datasets.append(company_data)
+        datasets = np.array(datasets)
+        data = np.array([company_to_sequences(company_data, sequence_length) for company_data in datasets])
+        data = np.concatenate(data)
 
 def convert_dates_to_integers(data):
     converted = np.array([np.array([datetime.strptime(row[0], '%Y-%m-%d'), row[1]]) for row in data if row[0]!=np.nan and '0' in row[0]])
@@ -75,8 +87,30 @@ def generate_snp_company_with_dates(company):
     data = data[['date', 'high']].dropna()
     return convert_dates_to_integers(data.to_numpy())
 
-def load_snp_data(company=None, batch_size=128):
+def load_snp_data(company=None, sequence_length=50, batch_size=128):
     data = generate_snp_data(company)
     dataset = torch.tensor(data, dtype=torch.float32)
     train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
     return train_loader, test_loader, val_loader
+
+def company_to_sequences (company_data, sequence_length = 50):
+    sequences = []
+    for i in range(len(company_data) - sequence_length):
+        sequence = company_data[i:i+sequence_length]
+        sequences.append(sequence)
+    return torch.tensor(np.array(sequences), dtype=torch.float32)
+
+
+
+def load_snp_data_for_cross_validation(sequence_length = 50, num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.6, test_size=0.2):
+    dataset = generate_snp_data(company=None)
+    #split dataset to a list of num_batches_for_validation batches:
+    batch_size = len(dataset) // num_batches_for_validation
+    batches = torch.split(dataset, batch_size)
+    loaders = []
+    for batch in batches:
+        train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size)
+        loaders.append((train_loader, test_loader, val_loader))
+    return loaders
+
+    
