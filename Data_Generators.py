@@ -69,10 +69,10 @@ def generate_snp_data(company=None, sequence_length=50):
         for symbol in symbols:
             company_data = data[data['symbol'] == symbol]
             company_data = company_data['high'].dropna().to_numpy()
-            datasets.append(company_data)
-        datasets = np.array(datasets)
-        data = np.array([company_to_sequences(company_data, sequence_length) for company_data in datasets])
-        data = np.concatenate(data)
+            company_sequentualised = company_to_sequences(company_data, sequence_length)
+            for seq in company_sequentualised:
+                datasets.append(seq)
+        data = np.array(datasets)
 
 def convert_dates_to_integers(data):
     converted = np.array([np.array([datetime.strptime(row[0], '%Y-%m-%d'), row[1]]) for row in data if row[0]!=np.nan and '0' in row[0]])
@@ -95,10 +95,14 @@ def load_snp_data(company=None, sequence_length=50, batch_size=128):
 
 def company_to_sequences (company_data, sequence_length = 50):
     sequences = []
-    for i in range(len(company_data) - sequence_length):
+    com_len = len(company_data)
+    unified_length = com_len - (com_len % sequence_length)
+    i=0
+    while i < unified_length:
         sequence = company_data[i:i+sequence_length]
+        i+=sequence_length
         sequences.append(sequence)
-    return torch.tensor(np.array(sequences), dtype=torch.float32)
+    return np.array(sequences)
 
 
 
