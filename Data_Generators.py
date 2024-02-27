@@ -5,20 +5,20 @@ from torchvision import datasets, transforms
 import numpy as np
 import pandas as pd
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
-def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2):
+def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False)):
     dataset_size = len(dataset)
     train_size = int(train_size * dataset_size)
     test_size = int(test_size * dataset_size)
     val_size = dataset_size - train_size - test_size
     train_dataset, test_val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size + val_size])
     test_dataset, val_dataset = torch.utils.data.random_split(test_val_dataset, [test_size, val_size])
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle[0])
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle[1])
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle[2])
     return train_loader, test_loader, val_loader
 
 
@@ -72,7 +72,8 @@ def generate_snp_data(company=None, sequence_length=50):
             company_sequentualised = company_to_sequences(company_data, sequence_length)
             for seq in company_sequentualised:
                 datasets.append(seq)
-        data = np.array(datasets)
+        data = torch.tensor(np.array(datasets), dtype=torch.float32)
+    return data
 
 def convert_dates_to_integers(data):
     converted = np.array([np.array([datetime.strptime(row[0], '%Y-%m-%d'), row[1]]) for row in data if row[0]!=np.nan and '0' in row[0]])
@@ -117,4 +118,56 @@ def load_snp_data_for_cross_validation(sequence_length = 50, num_batches_for_val
         loaders.append((train_loader, test_loader, val_loader))
     return loaders
 
+def count_companies_appearences(data):
+    #create a dict that matches each unique entry of data['symbol'] to its recurrences in data['symbol']:
+    companies = {}
+    for symbol in data['symbol']:
+        if symbol in companies:
+            companies[symbol] += 1
+        else:
+            companies[symbol] = 1
+    return companies
+
+def remove_non_dominant_companies (data, threshold = 1007):
+    companies = count_companies_appearences(data)
+    dominant_companies = [company for company in companies if companies[company] >= threshold]
+    return data[data['symbol'].isin(dominant_companies)]
+
+def remove_dates_without_all_the_dominant_companies(data):
+    data_dominant = remove_non_dominant_companies(data)
+    dominant_companies_set = set(data_dominant['symbol'])
+    dates_list_of_companies = []
+    dates = set(data_dominant['date'].astype(str))
+    for date in dates:
+        companies_on_data = data_dominant[data_dominant['date'] == date]
+        companies_on_date_as_set = set(companies_on_data['symbol'])
+        if companies_on_date_as_set != dominant_companies_set:
+            data_dominant = data_dominant[data_dominant['date'] != date]
+        else:
+            dates_list_of_companies.append(companies_on_data['high'].to_numpy())
+    #dates_list_of_companies is of shape(1007, 479)
+    #doesnt leave an amount of data but still something to work with.
+    #will prolly take alot of time to process such sequence length
+    return data_dominant, np.array(dates_list_of_companies)
+
+
+
+def generate_snp_data_with_sequences_as_dates():
+    data = pd.read_csv(os.path.join('snp500', 'snp500.csv'))
+    data, date_sequences = remove_dates_without_all_the_dominant_companies(data)
+
+def load_snp_data_by_dates_as_sequences_for_cross_validation(num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.8, test_size=0.2):
+    dataset = generate_snp_data_with_sequences_as_dates()
+    #split dataset to a list of num_batches_for_validation batches:
+    batch_size = len(dataset) // num_batches_for_validation
+    batches = torch.split(dataset, batch_size)
+    loaders = []
+    for batch in batches:
+        train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size)
+        loaders.append((train_loader, test_loader, val_loader))
+    return loaders
     
+
+
+
+

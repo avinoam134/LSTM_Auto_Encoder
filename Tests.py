@@ -256,8 +256,9 @@ def P3Q2_reconstruct_snp500_data():
     print (result.stderr)
     model = torch.load('lstm_ae_snp500_model.pth').eval()
     print (result.stdout)
-    data = load_snp_data('AMZN')
-    test_samples = data[:2]
+    _, test_loader, _ = load_snp_data('AMZN')
+    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[0].unsqueeze(-1)]
+    test_samples = torch.tensor(np.array(test_samples))
     test_samples_reconstruction = model(test_samples)
     fig, ax = plt.subplots(1, 2)
     fig.suptitle('Stock Price vs. Date')
@@ -266,6 +267,7 @@ def P3Q2_reconstruct_snp500_data():
         ax[i].plot(test_samples_reconstruction[i].detach().numpy(), label='Reconstruction')
         ax[i].legend()
     plt.show()
+
 
 
 

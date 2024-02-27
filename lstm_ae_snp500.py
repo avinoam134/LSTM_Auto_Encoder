@@ -10,7 +10,7 @@ def find_best_reconstruction_model():
     input_size = 1
     hidden_sizes = [8, 16, 32]
     layers = 1
-    epochs = 10
+    epochs = 100
     learning_rates = [0.1, 0.01, 0.001]
     gradient_clipping = [1,5]
     trainer = Basic_Trainer(torch.nn.MSELoss())
@@ -23,10 +23,10 @@ def find_best_reconstruction_model():
     for hidden_size in hidden_sizes:
         for learning_rate in learning_rates:
             for clip in gradient_clipping:
-                model, _ = get_model_and_trainer('LSTM_AE', input_size, hidden_size, layers)
+                model = LSTM_AE(input_size, hidden_size, layers)
                 train_loader, test_loader, val_loader = next(data_loaders_iter)
-                optimizer = get_optimizer('Adam', model, learning_rate)
-                trainer.train(model, train_loader, optimizer, epochs, clip)
+                optimizer = get_optimizer('SGD', model, learning_rate)
+                print(trainer.train(model, train_loader, optimizer, epochs, clip)[0])
                 cur_loss = trainer.test(model, val_loader)
                 if cur_loss < best_loss:
                     best_loss = cur_loss
