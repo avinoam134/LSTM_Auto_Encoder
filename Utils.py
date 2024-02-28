@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument('--optimizer', type=str, default='Adam')
     parser.add_argument('--reconstruction_dominance', type=float, default=0.5)
     parser.add_argument('--model', type=str, default='LSTM_AE_CLASSIFIER_V3')
+    parser.add_argument('--function', type = str, default = 'None')
     return parser.parse_args()
 
 def save_script_out_to_json (data_dict, file_name = "scripts_out.json"):

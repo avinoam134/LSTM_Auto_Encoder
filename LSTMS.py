@@ -1,7 +1,7 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-from Trainers import Basic_Trainer, Classifier_Trainer
+from Trainers import Basic_Trainer, Classifier_Trainer, Predictor_Trainer
 
 '''basic LSTM AE as in the diagram. used in lstm_ae_toy.py and as a basis to other models'''
 class LSTM_AE(nn.Module):
@@ -122,11 +122,30 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
         classification = self.classifier(classification[:, -1, :])
         return dec, classification
     
+class LSTM_AE_PREDICTOR (nn.Module):
+    def __init__(self, input_size=28, hidden_size=16, layers=1):
+        super(LSTM_AE_CLASSIFIER_V4, self).__init__()
+        self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
+        self.prediction_ae = LSTM_AE(input_size, hidden_size, layers)
+        self.predictor = nn.Sequential(
+            nn.Linear(input_size, input_size),
+            nn.ReLU(),
+            nn.Linear(input_size, 1)
+        )
 
+    def forward(self, x):
+        #reshape x to match the the reconstructor input size:
+        #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
+        x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
+        dec = self.reconstructor_ae(x)
+        prediction = self.prediction_ae(x)
+        prediction = self.predictor(prediction[:, -1, :])
+        return dec, prediction
 
 def get_model_and_trainer(model_name, input_size, hidden_size):
     clas_trainer = Classifier_Trainer(nn.MSELoss(), nn.CrossEntropyLoss(), input_size)
     basic_trainer = Basic_Trainer(nn.MSELoss())
+    pred_trainer =  Classifier_Trainer(nn.MSELoss(), nn.MSELoss(), input_size)
     if model_name == 'LSTM_AE':
         return LSTM_AE(input_size, hidden_size, 1), basic_trainer
     elif model_name == 'LSTM_AE_CLASSIFIER_V1':
@@ -141,6 +160,8 @@ def get_model_and_trainer(model_name, input_size, hidden_size):
         return LSTM_AE_CLASSIFIER_V3_Experimental(input_size, hidden_size, 1), clas_trainer
     elif model_name == 'LSTM_AE_CLASSIFIER_V4_Experimental':
         return LSTM_AE_CLASSIFIER_V4_Experimental(input_size, hidden_size, 1), clas_trainer
+    elif model_name == 'LSTM_AE_PREDICTOR':
+        return LSTM_AE_PREDICTOR(input_size, hidden_size, 1), pred_trainer
 
     else:
         raise ValueError('Invalid model name')

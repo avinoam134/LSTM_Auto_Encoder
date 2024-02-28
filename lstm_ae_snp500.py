@@ -10,7 +10,7 @@ def find_best_reconstruction_model():
     input_size = 1
     hidden_sizes = [8, 16, 32]
     layers = 1
-    epochs = 100
+    epochs = 10000
     learning_rates = [0.1, 0.01, 0.001]
     gradient_clipping = [1,5]
     trainer = Basic_Trainer(torch.nn.MSELoss())
@@ -18,6 +18,7 @@ def find_best_reconstruction_model():
     best_loss = float('inf')
     best_params = None
     best_model = None
+    test_data = None
     #create an iterator for data_loaders:
     data_loaders_iter = iter(data_loaders)
     for hidden_size in hidden_sizes:
@@ -26,18 +27,24 @@ def find_best_reconstruction_model():
                 model = LSTM_AE(input_size, hidden_size, layers)
                 train_loader, test_loader, val_loader = next(data_loaders_iter)
                 optimizer = get_optimizer('SGD', model, learning_rate)
-                print(trainer.train(model, train_loader, optimizer, epochs, clip)[0])
+                trainer.train(model, train_loader, optimizer, epochs, clip)
                 cur_loss = trainer.test(model, val_loader)
                 if cur_loss < best_loss:
                     best_loss = cur_loss
                     best_params = (hidden_size, learning_rate, clip)
                     best_model = model
-    return best_model, best_params
+                    test_data = test_loader
+    torch.save(best_model, 'lstm_ae_snp500_model.pth')
+    save_script_out_to_json({'best_params': best_params,
+                             'test_loader' : test_data}, 'scripts_out.json')
+
 
 def main():
-    bestmodel, best_params = find_best_reconstruction_model()
-    torch.save(bestmodel, 'lstm_ae_snp500_model.pth')
-    print(best_params)
+    args = parse_args()
+    if args.function == 'find_best_reconstruction_model':
+        find_best_reconstruction_model()
+    else:
+        raise ValueError('Invalid function')
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 
 
-def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False)):
+def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False), get_test_raw = False):
     dataset_size = len(dataset)
     train_size = int(train_size * dataset_size)
     test_size = int(test_size * dataset_size)
@@ -17,9 +17,10 @@ def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = 
     train_dataset, test_val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size + val_size])
     test_dataset, val_dataset = torch.utils.data.random_split(test_val_dataset, [test_size, val_size])
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle[0])
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle[1])
+    if not get_test_raw:
+        test_dataset = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle[1])
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle[2])
-    return train_loader, test_loader, val_loader
+    return train_loader, test_dataset, val_loader
 
 
 #synthetic data generator:
@@ -52,16 +53,36 @@ def load_MNIST_data(batch_size=128):
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
+def get_snp_stock_max_high(data, company):
+    data = data[data['symbol'] == company]
+    return data['high'].max()
+
+def normalise_company(data, company):
+    max_high = get_snp_stock_max_high(data, company)
+    data.loc[data['symbol'] == company, 'high'] /= max_high
+    return data
+
+def normalise_snp_data(data):
+    companies = set(data['symbol'])
+    for company in companies:
+        data = normalise_company(data, company)
+    return data
 
 
-def generate_snp_data(company=None, sequence_length=50):
+
+
+def generate_snp_data(stocks_combined = True, company=None, sequence_length=30):
     snp_path = os.path.join('snp500', 'snp500.csv')
     data = pd.read_csv(snp_path)
     data['symbol'] = data['symbol'].astype(str)
+    data = normalise_snp_data(data)
     if company is not None:
         data = data[data['symbol'] == company]
         data = data['high'].dropna().to_numpy()
-        data = company_to_sequences(data, sequence_length)
+        data = torch.tensor(company_to_sequences(data, sequence_length), dtype=torch.float32)
+    elif stocks_combined:
+        data = data['high'].dropna().to_numpy()
+        data = torch.tensor(company_to_sequences(data, sequence_length), dtype=torch.float32)
     else:
         symbols = set(data['symbol'])
         #iterate the symbols and create a dataset for each symbol:
@@ -73,6 +94,7 @@ def generate_snp_data(company=None, sequence_length=50):
             for seq in company_sequentualised:
                 datasets.append(seq)
         data = torch.tensor(np.array(datasets), dtype=torch.float32)
+
     return data
 
 def convert_dates_to_integers(data):
@@ -88,13 +110,13 @@ def generate_snp_company_with_dates(company):
     data = data[['date', 'high']].dropna()
     return convert_dates_to_integers(data.to_numpy())
 
-def load_snp_data(company=None, sequence_length=50, batch_size=128):
-    data = generate_snp_data(company)
+def load_snp_data(company=None, sequence_length=30, batch_size=128):
+    data = generate_snp_data(company, sequence_length=sequence_length)
     dataset = torch.tensor(data, dtype=torch.float32)
     train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
     return train_loader, test_loader, val_loader
 
-def company_to_sequences (company_data, sequence_length = 50):
+def company_to_sequences (company_data, sequence_length = 30):
     sequences = []
     com_len = len(company_data)
     unified_length = com_len - (com_len % sequence_length)
@@ -107,14 +129,14 @@ def company_to_sequences (company_data, sequence_length = 50):
 
 
 
-def load_snp_data_for_cross_validation(sequence_length = 50, num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.6, test_size=0.2):
-    dataset = generate_snp_data(company=None)
+def load_snp_data_for_cross_validation(sequence_length = 30, num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.6, test_size=0.2):
+    dataset = generate_snp_data(company=None, stocks_combined=True)
     #split dataset to a list of num_batches_for_validation batches:
     batch_size = len(dataset) // num_batches_for_validation
     batches = torch.split(dataset, batch_size)
     loaders = []
     for batch in batches:
-        train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size)
+        train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size, get_test_raw=True)
         loaders.append((train_loader, test_loader, val_loader))
     return loaders
 
@@ -155,6 +177,7 @@ def remove_dates_without_all_the_dominant_companies(data):
 def generate_snp_data_with_sequences_as_dates():
     data = pd.read_csv(os.path.join('snp500', 'snp500.csv'))
     data, date_sequences = remove_dates_without_all_the_dominant_companies(data)
+    return 
 
 def load_snp_data_by_dates_as_sequences_for_cross_validation(num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.8, test_size=0.2):
     dataset = generate_snp_data_with_sequences_as_dates()
@@ -166,7 +189,49 @@ def load_snp_data_by_dates_as_sequences_for_cross_validation(num_batches_for_val
         train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size)
         loaders.append((train_loader, test_loader, val_loader))
     return loaders
+
+
+
+def company_to_sequences_and_labels (company_data, sequence_length = 30):
+    sequences = []
+    labels = []
+    com_len = len(company_data)
+    unified_length = com_len - (com_len % sequence_length)
+    i=0
+    while i < unified_length:
+        sequence = company_data[i:i+sequence_length-1]
+        label = company_data[i+sequence_length-1]
+        i+=sequence_length
+        sequences.append(sequence)
+        labels.append(label)
+    return np.array(sequences), np.array(labels)
+
+def generate_snp_data_with_labels(sequence_length=30):
+    snp_path = os.path.join('snp500', 'snp500.csv')
+    data = pd.read_csv(snp_path)
+    data['symbol'] = data['symbol'].astype(str)
+    data = normalise_snp_data(data)
+    symbols = set(data['symbol'])
+    #iterate the symbols and create a dataset for each symbol:
+    datasets = []
+    labels = []
+    for symbol in symbols:
+        company_data = data[data['symbol'] == symbol]
+        company_data = company_data['high'].dropna().to_numpy()
+        company_sequentualised, company_labels = company_to_sequences_and_labels(company_data, sequence_length)
+        for seq in company_sequentualised:
+            datasets.append(seq)
+        for label in company_labels:
+            labels.append(label)
+    data = torch.tensor(np.array(datasets), dtype=torch.float32)
+    labels = torch.tensor(np.array(labels), dtype=torch.float32)
+    return data, labels
     
+def load_snp_data_with_labels(sequence_length=30, batch_size=128):
+    data, labels = generate_snp_data_with_labels(sequence_length)
+    dataset = torch.utils.data.TensorDataset(data, labels)
+    train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
+    return train_loader, test_loader, val_loader
 
 
 

@@ -251,13 +251,17 @@ def P3Q1_show_snp500_data():
     plt.show()
 
 
-def P3Q2_reconstruct_snp500_data():
-    result = subprocess.run(['python3', 'lstm_ae_snp500.py'], text=True, capture_output=True)
+def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'find_best_reconstruction_model'], text=True, capture_output=True)
     print (result.stderr)
-    model = torch.load('lstm_ae_snp500_model.pth').eval()
     print (result.stdout)
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    out_dict = load_script_out_from_json('scripts_out.json')
+    params= out_dict['best_params']
+    test_data = out_dict['test_loader']
+    print (f"Best Hyperparameters:\nhidden_size - {params[0]}, learning_rate: {params[1]}, gradient_clip: {params[2]}")
     _, test_loader, _ = load_snp_data('AMZN')
-    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[0].unsqueeze(-1)]
+    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
     test_samples = torch.tensor(np.array(test_samples))
     test_samples_reconstruction = model(test_samples)
     fig, ax = plt.subplots(1, 2)
@@ -273,10 +277,8 @@ def P3Q2_reconstruct_snp500_data():
 
 
 
-
-
 def main():
-    P3Q2_reconstruct_snp500_data()
+    P3Q2_find_best_hyperparams_and_reconstruct_snp500_data()
 
 if __name__ == '__main__':
     main()
