@@ -36,4 +36,3 @@ def save_script_out_to_json (data_dict, file_name = "scripts_out.json"):
 def load_script_out_from_json(file_name = "scripts_out.json"):
     with open(file_name, 'r') as f:
         return json.load(f)
-    

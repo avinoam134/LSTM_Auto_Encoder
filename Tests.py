@@ -173,7 +173,7 @@ def get_best_mnist_model(input_size = 28, hidden_size = 8,  epochs = 10, learnin
 
 def P2_Q1_reconstruct_mnist_images(model = None):
     if model is None:
-        model, _ = get_best_mnist_model(dry_run=True, model = 'LSTM_AE_CLASSIFIER_V1')
+        model, _ = get_best_mnist_model(dry_run=False, model = 'LSTM_AE_CLASSIFIER_V1')
     _, test_loader = load_MNIST_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples, _ = next(iter(test_loader))
@@ -192,7 +192,7 @@ def P2_Q1_reconstruct_mnist_images(model = None):
 
 
 def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
-    _, _ = get_best_mnist_model(classify=False)
+    #_, _ = get_best_mnist_model(classify=False)
     reconstructor_dict = load_script_out_from_json(scripts_out_path)
     _, _ = get_best_mnist_model(classify=True)
     classifier_dict = load_script_out_from_json(scripts_out_path)
@@ -272,13 +272,45 @@ def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data():
         ax[i].legend()
     plt.show()
 
+def P3Q3_find_best_prediction_model():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'find_best_prediction_model'], text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    params_n_loss = load_script_out_from_json('scripts_out.json')
+    params = params_n_loss['best_params']
+    loss = params_n_loss['test_loss']
+    print (f"Best Hyperparameters:\nhidden_size - {params[0]}, learning_rate: {params[1]}, gradient_clip: {params[2]}, final_loss = {loss}")
+    #impl continueation:
+    '''
+    1. make the train and test return 2 different arrays of recon loss and prediction loss
+    2.  
+    '''
 
 
+
+
+
+
+    # batch_size = 128
+    # test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False)
+    # loss = model.test(model, test_loader)
+    # test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
+    # test_samples = torch.tensor(np.array(test_samples))
+    # test_samples_reconstruction = model(test_samples)
+    # fig, ax = plt.subplots(1, 2)
+    # fig.suptitle('Stock Price vs. Date')
+    # for i in range(2):
+    #     ax[i].plot(test_samples[i], label='Original')
+    #     ax[i].plot(test_samples_reconstruction[i].detach().numpy(), label='Reconstruction')
+    #     ax[i].legend()
+    # plt.show()
+    
 
 
 
 def main():
-    P3Q2_find_best_hyperparams_and_reconstruct_snp500_data()
+    P3Q3_find_best_prediction_model()
 
 if __name__ == '__main__':
     main()

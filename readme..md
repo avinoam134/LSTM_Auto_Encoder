@@ -1,5 +1,4 @@
-Q1: gather, clean and display data. input is limited to a single samle of max price for day
-Q2: train classic AE_MNIST on the data. use cross-training and test on regular batches
+
 Q3: icorporate prediction
 Q4: adjust into multi-step
 
@@ -17,14 +16,15 @@ penalty will be handled by MSE w.r.t the output[stock_index] ONLY
 
 
 at the end:
-- make all dry_runs=True and organise Tests.py
+- make all dry_runs=False and organise Tests.py
 - remove prints
 - change default parameters for all models
 
 
 
-if i have 1 file called X with path ./A/X and a python script in ./B and i would like to import X to the script - how would i implement it so that it will be valid for all operating systems? 
+for github submission:
+ - reorganise data into neat folders
+ - normalise KFold on reconstruction
+ - rewrite all classes and workflows (generating data -> training and testing -> display) in an organised fashion. remove unnecessary codes.
 
-
-
-P3
+ 

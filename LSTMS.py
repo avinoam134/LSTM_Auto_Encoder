@@ -132,6 +132,7 @@ class LSTM_AE_PREDICTOR (nn.Module):
             nn.ReLU(),
             nn.Linear(input_size, 1)
         )
+        
 
     def forward(self, x):
         #reshape x to match the the reconstructor input size:

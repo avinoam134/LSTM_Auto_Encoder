@@ -6,21 +6,22 @@ import numpy as np
 import pandas as pd
 import random
 from datetime import datetime, timedelta
+from Utils import save_script_out_to_json, load_script_out_from_json
 
 
-
-def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False), get_test_raw = False):
+def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False), save_test = False):
     dataset_size = len(dataset)
     train_size = int(train_size * dataset_size)
     test_size = int(test_size * dataset_size)
     val_size = dataset_size - train_size - test_size
     train_dataset, test_val_dataset = torch.utils.data.random_split(dataset, [train_size, test_size + val_size])
     test_dataset, val_dataset = torch.utils.data.random_split(test_val_dataset, [test_size, val_size])
+    if save_test:
+        torch.save(test_dataset, 'scripts_test_data.pth')
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle[0])
-    if not get_test_raw:
-        test_dataset = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle[1])
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle[1])
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle[2])
-    return train_loader, test_dataset, val_loader
+    return train_loader, test_loader, val_loader
 
 
 #synthetic data generator:
@@ -67,7 +68,6 @@ def normalise_snp_data(data):
     for company in companies:
         data = normalise_company(data, company)
     return data
-
 
 
 
@@ -179,7 +179,7 @@ def generate_snp_data_with_sequences_as_dates():
     data, date_sequences = remove_dates_without_all_the_dominant_companies(data)
     return 
 
-def load_snp_data_by_dates_as_sequences_for_cross_validation(num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.8, test_size=0.2):
+def load_snp_data_by_dates_as_sequences_for_cross_validation(num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.6, test_size=0.2):
     dataset = generate_snp_data_with_sequences_as_dates()
     #split dataset to a list of num_batches_for_validation batches:
     batch_size = len(dataset) // num_batches_for_validation
@@ -230,9 +230,31 @@ def generate_snp_data_with_labels(sequence_length=30):
 def load_snp_data_with_labels(sequence_length=30, batch_size=128):
     data, labels = generate_snp_data_with_labels(sequence_length)
     dataset = torch.utils.data.TensorDataset(data, labels)
-    train_loader, test_loader, val_loader = split_dataset(dataset, batch_size)
+    train_loader, test_loader, val_loader = split_dataset(dataset, batch_size, train_size=0.8, test_size=0.2, save_test=True)
     return train_loader, test_loader, val_loader
 
 
+def load_snp_data_with_labels_for_cross_validation (num_batches_for_validation = 18 ,mini_batch_size=128, train_size=0.7, test_size=0.1):
+    data, labels = generate_snp_data_with_labels()
+    #split dataset to a list of num_batches_for_validation batches:
+    dataset = torch.utils.data.TensorDataset(data, labels)
+    batch_size = len(dataset) // num_batches_for_validation
+    batches = torch.split(dataset, batch_size)
+    loaders = []
+    for batch in batches:
+        train_loader, test_loader, val_loader = split_dataset(batch, mini_batch_size, train_size, test_size, save_test=True)
+        loaders.append((train_loader, test_loader, val_loader))
+    return loaders
 
 
+
+
+def save_companies_max_values(data):
+    companies = set(data['symbol'])
+    max_values = {}
+    for company in companies:
+        max_values[company] = get_snp_stock_max_high(data, company)
+    save_script_out_to_json(max_values, 'snp_companies_max_values.json')
+
+def load_companies_max_values():
+    return load_script_out_from_json('snp_companies_max_values.json')
