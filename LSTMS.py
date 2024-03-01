@@ -123,15 +123,29 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
         return dec, classification
     
 class LSTM_AE_PREDICTOR (nn.Module):
-    def __init__(self, input_size=28, hidden_size=16, layers=1):
-        super(LSTM_AE_CLASSIFIER_V4, self).__init__()
+    def __init__(self, input_size=1, hidden_size=16, layers=1):
+        super(LSTM_AE_PREDICTOR, self).__init__()
         self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
         self.prediction_ae = LSTM_AE(input_size, hidden_size, layers)
-        self.predictor = nn.Sequential(
+        self.predictior = nn.Sequential(
             nn.Linear(input_size, input_size),
             nn.ReLU(),
             nn.Linear(input_size, 1)
         )
+        
+    def forward(self, x):
+        x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
+        dec = self.reconstructor_ae(x)
+        prediction = self.prediction_ae(x)
+        prediction = self.predictor(prediction[:, -1, :])
+        return dec, prediction
+    
+
+class LSTM_AE_PREDICTOR_V2 (nn.Module):
+    def __init__(self, input_size=1, hidden_size=16, layers=1):
+        super(LSTM_AE_PREDICTOR_V2, self).__init__()
+        self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
+        self.prediction_ae = LSTM_AE(input_size, hidden_size, layers)
         
 
     def forward(self, x):
@@ -140,7 +154,6 @@ class LSTM_AE_PREDICTOR (nn.Module):
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
         prediction = self.prediction_ae(x)
-        prediction = self.predictor(prediction[:, -1, :])
         return dec, prediction
 
 def get_model_and_trainer(model_name, input_size, hidden_size):

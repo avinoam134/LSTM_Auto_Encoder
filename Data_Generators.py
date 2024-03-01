@@ -218,7 +218,7 @@ def generate_snp_data_with_labels(sequence_length=30):
     for symbol in symbols:
         company_data = data[data['symbol'] == symbol]
         company_data = company_data['high'].dropna().to_numpy()
-        company_sequentualised, company_labels = company_to_sequences_and_labels(company_data, sequence_length)
+        company_sequentualised, company_labels = company_to_sequences_and_labels_v3(company_data, sequence_length)
         for seq in company_sequentualised:
             datasets.append(seq)
         for label in company_labels:
@@ -246,7 +246,11 @@ def load_snp_data_with_labels_for_cross_validation (num_batches_for_validation =
         loaders.append((train_loader, test_loader, val_loader))
     return loaders
 
-
+def load_snp_data_with_labels_for_kfolds (train_size=0.9, test_size=0.1):
+    data, labels = generate_snp_data_with_labels()
+    dataset = torch.utils.data.TensorDataset(data, labels)
+    train_set, test_set = torch.utils.data.random_split(dataset, [train_size, test_size])
+    return test_set, train_set
 
 
 def save_companies_max_values(data):
@@ -256,5 +260,24 @@ def save_companies_max_values(data):
         max_values[company] = get_snp_stock_max_high(data, company)
     save_script_out_to_json(max_values, 'snp_companies_max_values.json')
 
-def load_companies_max_values():
-    return load_script_out_from_json('snp_companies_max_values.json')
+
+def company_to_sequences_and_labels_v2 (company_data, sequence_length = 30):
+    sequences = []
+    labels = []
+    for i in range (len(company_data) - sequence_length):
+        sequence = company_data[i:i+sequence_length-1]
+        label = company_data[i+sequence_length-1]
+        sequences.append(sequence)
+        labels.append(label)
+    return np.array(sequences), np.array(labels)
+
+def company_to_sequences_and_labels_v3(company_data, sequence_length = 30):
+    sequences = []
+    labels = []
+    for i in range (len(company_data) - sequence_length):
+        sequence = company_data[i : i+sequence_length]
+        label = company_data[i+1 :i+sequence_length+1]
+        sequences.append(sequence)
+        labels.append(label)
+
+

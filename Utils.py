@@ -1,4 +1,5 @@
 import torch.optim as optim
+import torch
 import argparse
 import os
 import json
@@ -36,3 +37,7 @@ def save_script_out_to_json (data_dict, file_name = "scripts_out.json"):
 def load_script_out_from_json(file_name = "scripts_out.json"):
     with open(file_name, 'r') as f:
         return json.load(f)
+
+def get_accuracy_level_as_percentage (predictions, labels):
+    return 100*abs(predictions-labels)/labels
+

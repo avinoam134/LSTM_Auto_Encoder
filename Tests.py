@@ -272,40 +272,31 @@ def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data():
         ax[i].legend()
     plt.show()
 
+
+
 def P3Q3_find_best_prediction_model():
-    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'find_best_prediction_model'], text=True, capture_output=True)
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'k_folds_find_best_reconstruction_model'], text=True, capture_output=True)
     print (result.stderr)
     print (result.stdout)
     model = torch.load('lstm_ae_snp500_model.pth').eval()
     params_n_loss = load_script_out_from_json('scripts_out.json')
     params = params_n_loss['best_params']
-    loss = params_n_loss['test_loss']
+    loss = params_n_loss['final_test_loss']
     print (f"Best Hyperparameters:\nhidden_size - {params[0]}, learning_rate: {params[1]}, gradient_clip: {params[2]}, final_loss = {loss}")
-    #impl continueation:
-    '''
-    1. make the train and test return 2 different arrays of recon loss and prediction loss
-    2.  
-    '''
 
 
+def show_original_vs_prediction():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'k_folds_train_predictor_model'], text=True, capture_output=True)
+    test_data = torch.load('scripts_test_data.pt')
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
+    test_samples = torch.tensor(np.array(test_samples))
+    recon, pred = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
 
-
-
-
-    # batch_size = 128
-    # test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    # loss = model.test(model, test_loader)
-    # test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
-    # test_samples = torch.tensor(np.array(test_samples))
-    # test_samples_reconstruction = model(test_samples)
-    # fig, ax = plt.subplots(1, 2)
-    # fig.suptitle('Stock Price vs. Date')
-    # for i in range(2):
-    #     ax[i].plot(test_samples[i], label='Original')
-    #     ax[i].plot(test_samples_reconstruction[i].detach().numpy(), label='Reconstruction')
-    #     ax[i].legend()
-    # plt.show()
     
+
 
 
 

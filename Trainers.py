@@ -1,9 +1,11 @@
 import torch
 import sys
+from torchvision import datasets, transforms
 import torch.utils.data
 import torch.nn.utils as clip
 import numpy as np
-from sklearn.model_selection import KFold, TimeSeriesSplit
+import copy
+#from sklearn.model_selection import KFold, TimeSeriesSplit
 
 
 class Basic_Trainer:
@@ -114,12 +116,16 @@ class Predictor_Trainer:
         self.recon_criterion = torch.nn.MSELoss()
         self.pred_criterion = torch.nn.MSELoss()
         self.input_size = input_size
-        self.kf = KFold(n_splits=kfolds, shuffle=True)
+        #self.kf = KFold(n_splits=kfolds, shuffle=True)
 
     def train(self, model, train_loader, optimizer, epochs, gradient_clipping, recon_dominance):
+        recon_losses = []
+        pred_losses = []
         all_losses = []
         for epoch in range(epochs):
-            epoch_losses = []
+            epoch_recon_losses = []
+            epoch_pred_losses = []
+            epoch_total_losses = []
             for sequences, labels in train_loader:
                 batch_size = sequences.size(0)
                 model.train()
@@ -128,25 +134,29 @@ class Predictor_Trainer:
                 # Flatten reconstructions for loss calculation
                 reconstructions = reconstructions.reshape((batch_size, -1,self.input_size))        
                 # Compute reconstruction loss (MSE)
-                recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))        
+                recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))
+                epoch_recon_losses.append(recon_loss.item())        
                 # Compute classification loss (Cross-Entropy)
-                pred_loss = self.pred_criterion(predictions, labels)       
+                pred_loss = self.pred_criterion(predictions, labels) 
+                epoch_pred_losses.append(pred_loss.item())     
                 # Total loss
                 loss = (recon_dominance)*recon_loss + (1-recon_dominance)*pred_loss
-                #save losses
-                epoch_losses.append(loss.item())
+                epoch_total_losses.append(loss.item())
                 # Backpropagation and optimization
                 loss.backward()
                 clip.clip_grad_norm_(model.parameters(), gradient_clipping)
                 optimizer.step()
                 #print(f'epoch:{epoch}, itertaion: {}')
-            all_losses.append(np.mean(np.array(epoch_losses)))
-        return all_losses
+            recon_losses.append(np.mean(np.array(epoch_recon_losses)))
+            pred_losses.append(np.mean(np.array(epoch_pred_losses)))
+            all_losses.append(np.mean(np.array(epoch_total_losses)))
+        return all_losses, recon_losses, pred_losses
 
 
     def test(self, model, test_loader, recon_dominance):
         model.eval()
         total_loss = 0.0
+        pred_acc_precentile = []
         with torch.no_grad():
             for sequences, labels in test_loader:
                 batch_size = sequences.size(0)
@@ -156,22 +166,128 @@ class Predictor_Trainer:
                 # Compute reconstruction loss (MSE)
                 recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))        
                 # Compute classification loss (Cross-Entropy)
-                pred_loss = self.pred_criterion(predictions, labels)       
+                pred_loss = self.pred_criterion(predictions, labels)
+                cur_acc_percentile = 100*abs(predictions-labels)/labels
+                pred_acc_precentile.append(cur_acc_percentile)       
                 # Total loss
                 loss = (recon_dominance)*recon_loss + (1-recon_dominance)*pred_loss
                 total_loss += loss.item()
         total_loss/=len(test_loader)
-        return total_loss
+        total_percentile = np.mean(np.array(pred_acc_precentile))
+        return total_loss, total_percentile
     
-    # def kfolds_train(self, model, train_data, optimizer, epochs, gradient_clipping, recon_dominance):
-    #     all_splits_train_losses = []
-    #     all_splits_test_losses = []
-    #     for train_idx, test_idx in self.kf.split(train_data):
-    #         train_set = torch.utils.data.Subset(train_data, train_idx)
-    #         test_set = torch.utils.data.Subset(train_data, test_idx)
-    #         train_losses = self.train(model, train_set, optimizer, epochs, gradient_clipping, recon_dominance)
-    #         all_splits_train_losses.extend(train_losses)
-    #         test_loss = self.test(model, test_set, recon_dominance)
-    #         all_splits_test_losses.append(test_loss)
+    def kfolds_train(self, model, kf ,train_data, optimizer, epochs, gradient_clipping, recon_dominance, batch_size=128):
+        best_model = None
+        best_test_loss = float('inf')
+        best_train_loss = float('inf')
+        best_test_losses = None
+        for train_idx, test_idx in kf.split(train_data):
+            train_set = torch.utils.data.Subset(train_data, train_idx)
+            test_set = torch.utils.data.Subset(train_data, test_idx)
+            train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
+            test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
+            cur_model = copy.deepcopy(model)
+            cur_optimizer = copy.deepcopy(optimizer)
+            train_losses, recon_losses, pred_losses = self.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
+            test_loss, test_loss_precentile = self.test(model, test_loader, recon_dominance)
+            if test_loss < best_test_loss:
+                best_test_loss = test_loss
+                best_test_losses = (test_loss, test_loss_precentile)
+                best_train_losses = (train_losses, recon_losses, pred_losses)
+                best_model = cur_model
+            #todo: save all the train losseses
+            #make a percentile loss for test and save it aswell
+        return best_model, best_test_losses, best_train_losses 
+0
 
+
+
+class Predictor_Trainer:
+    def __init__(self, input_size=1, kfolds=10):
+        self.recon_criterion = torch.nn.MSELoss()
+        self.pred_criterion = torch.nn.MSELoss()
+        self.input_size = input_size
+        #self.kf = KFold(n_splits=kfolds, shuffle=True)
+
+    def train(self, model, train_loader, optimizer, epochs, gradient_clipping, recon_dominance):
+        recon_losses = []
+        pred_losses = []
+        all_losses = []
+        for epoch in range(epochs):
+            epoch_recon_losses = []
+            epoch_pred_losses = []
+            epoch_total_losses = []
+            for sequences, labels in train_loader:
+                batch_size = sequences.size(0)
+                model.train()
+                optimizer.zero_grad()
+                reconstructions, predictions = model(sequences)        
+                # Flatten reconstructions for loss calculation
+                reconstructions = reconstructions.reshape((batch_size, -1,self.input_size))        
+                # Compute reconstruction loss (MSE)
+                recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))
+                epoch_recon_losses.append(recon_loss.item())        
+                # Compute classification loss (Cross-Entropy)
+                pred_loss = self.pred_criterion(predictions, labels) 
+                epoch_pred_losses.append(pred_loss.item())     
+                # Total loss
+                loss = (recon_dominance)*recon_loss + (1-recon_dominance)*pred_loss
+                epoch_total_losses.append(loss.item())
+                # Backpropagation and optimization
+                loss.backward()
+                clip.clip_grad_norm_(model.parameters(), gradient_clipping)
+                optimizer.step()
+                #print(f'epoch:{epoch}, itertaion: {}')
+            recon_losses.append(np.mean(np.array(epoch_recon_losses)))
+            pred_losses.append(np.mean(np.array(epoch_pred_losses)))
+            all_losses.append(np.mean(np.array(epoch_total_losses)))
+        return all_losses, recon_losses, pred_losses
+
+
+    def test(self, model, test_loader, recon_dominance):
+        model.eval()
+        total_loss = 0.0
+        pred_acc_precentile = []
+        with torch.no_grad():
+            for sequences, labels in test_loader:
+                batch_size = sequences.size(0)
+                reconstructions, predictions = model(sequences)        
+                # Flatten reconstructions for loss calculation
+                reconstructions = reconstructions.reshape((batch_size,-1, self.input_size))        
+                # Compute reconstruction loss (MSE)
+                recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))        
+                # Compute classification loss (Cross-Entropy)
+                pred_loss = self.pred_criterion(predictions, labels)
+                cur_acc_percentile = 100*abs(predictions-labels)/labels
+                pred_acc_precentile.append(cur_acc_percentile)       
+                # Total loss
+                loss = (recon_dominance)*recon_loss + (1-recon_dominance)*pred_loss
+                total_loss += loss.item()
+        total_loss/=len(test_loader)
+        total_percentile = np.mean(np.array(pred_acc_precentile))
+        return total_loss, total_percentile
+    
+    def kfolds_train(self, model, kf ,train_data, optimizer, epochs, gradient_clipping, recon_dominance, batch_size=128):
+        best_model = None
+        best_test_loss = float('inf')
+        best_train_loss = float('inf')
+        best_test_losses = None
+        for fold, train_idx, test_idx in enumerate(kf.split(train_data)):
+            print (f"Fold {i} started.")
+            train_set = torch.utils.data.Subset(train_data, train_idx)
+            test_set = torch.utils.data.Subset(train_data, test_idx)
+            train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
+            test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
+            cur_model = copy.deepcopy(model)
+            cur_optimizer = copy.deepcopy(optimizer)
+            train_losses, recon_losses, pred_losses = self.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
+            test_loss, test_loss_precentile = self.test(model, test_loader, recon_dominance)
+            if test_loss < best_test_loss:
+                best_test_loss = test_loss
+                best_test_losses = (test_loss, test_loss_precentile)
+                best_train_losses = (train_losses, recon_losses, pred_losses)
+                best_model = cur_model
+            #todo: save all the train losseses
+            #make a percentile loss for test and save it aswell
+        return best_model, best_test_losses, best_train_losses 
 
