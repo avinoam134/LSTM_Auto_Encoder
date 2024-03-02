@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from Utils import parse_args, get_optimizer, save_script_out_to_json, os
 from Data_Generators import load_snp_data, load_snp_data_for_cross_validation, load_snp_data_with_labels_for_cross_validation, load_snp_data_with_labels_for_kfolds
-from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4, LSTM_AE_PREDICTOR, LSTM_AE_PREDICTOR_V2 ,get_model_and_trainer
+from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4, LSTM_AE_PREDICTOR, LSTM_AE_PREDICTOR_V2, LSTM_AE_PREDICTOR_V3 ,get_model_and_trainer
 from Trainers import Basic_Trainer, Predictor_Trainer
 from sklearn.model_selection import KFold, TimeSeriesSplit
 
@@ -122,7 +122,7 @@ def kfolds_train(trainer, model_args, kf ,train_data, optimizer_args, epochs, gr
         trainer.pred_criterion = torch.nn.MSELoss()
         # cur_model = copy.deepcopy(model)
         # cur_optimizer = copy.deepcopy(optimizer)
-        cur_model = LSTM_AE_PREDICTOR_V2(*model_args)
+        cur_model = LSTM_AE_PREDICTOR_V3(*model_args)
         optim_name, learning_rate = optimizer_args
         cur_optimizer = get_optimizer(optim_name, cur_model, learning_rate)
         train_losses, recon_losses, pred_losses = trainer.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
@@ -139,7 +139,7 @@ def k_folds_train_predictor_model():
     layers = 1
     learning_rate = 0.001
     clip = 5
-    epochs = 10
+    epochs = 20
     trainer = Predictor_Trainer()
     dataset, test_set = load_snp_data_with_labels_for_kfolds()
     test_loader = torch.utils.data.DataLoader(test_set, batch_size = 100000, shuffle = False)

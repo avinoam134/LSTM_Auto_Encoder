@@ -321,13 +321,12 @@ def show_pre_trained_model_prediction_and_reconstruction():
     fig.suptitle('Reconstruction vs. Prediction vs Original Stock Prices')
     for i in range(2):
         #ax[i].plot(test_samples[i], label='Original 1Day Early')
-        #ax[i].plot(lables[i], label='Original 1Day Later')
+        ax[i].plot(lables[i], label='Original 1Day Later')
         #ax[i].plot(recon[i].detach().numpy(), label='Reconstruction')
-        #ax[i].plot(pred[i].detach().numpy(), label='Prediction')
+        ax[i].plot(pred[i].detach().numpy(), label='Prediction')
         #ax[i].plot(labels_last_days[i].detach().numpy(), label='Originals Last Days')
         #ax[i].plot(pred_last_days[i].detach().numpy(), label='Predictions Last Days')
-        #ax[i].legend()
-        continue
+        ax[i].legend()
     plt.show()
 
 
