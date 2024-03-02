@@ -287,10 +287,20 @@ def P3Q3_find_best_prediction_model():
 
 def show_original_vs_prediction():
     result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'k_folds_train_predictor_model'], text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
     test_data = torch.load('scripts_test_data.pt')
     model = torch.load('lstm_ae_snp500_model.pth').eval()
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
-    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 2, shuffle = False)
+    test_samples = next(iter(test_loader))
+    recon, pred = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Reconstruction vs. Prediction vs Original Stock Prices')
+    for i in range(2):
+        ax[i].plot(test_samples[i], label='Original')
+        ax[i].plot(recon[i].detach().numpy(), label='Reconstruction')
+        ax[i].plot(pred[i].detach().numpy(), label='Prediction')
+        ax[i].legend()
     test_samples = torch.tensor(np.array(test_samples))
     recon, pred = model(test_samples)
     fig, ax = plt.subplots(1, 2)
@@ -301,7 +311,7 @@ def show_original_vs_prediction():
 
 
 def main():
-    P3Q3_find_best_prediction_model()
+    show_original_vs_prediction()
 
 if __name__ == '__main__':
     main()

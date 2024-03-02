@@ -279,5 +279,6 @@ def company_to_sequences_and_labels_v3(company_data, sequence_length = 30):
         label = company_data[i+1 :i+sequence_length+1]
         sequences.append(sequence)
         labels.append(label)
+    return np.array(sequences), np.array(labels)
 
 

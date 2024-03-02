@@ -76,7 +76,7 @@ def k_folds_find_best_reconstruction_model():
     input_size = 1
     hidden_sizes = [8, 16, 32]
     layers = 1
-    epochs = 10000
+    epochs = 1000
     learning_rates = [0.1, 0.01, 0.001]
     gradient_clipping = [1,5]
     hyperparams = [(hidden_sizes[i], learning_rates[j], gradient_clipping[k]) for i in range(3) for j in range(3) for k in range(2)]
@@ -113,18 +113,18 @@ def k_folds_train_predictor_model():
     input_size, layers = 1,1
     learning_rate = 0.01
     clip = 5
-    epochs = 10000
+    epochs = 100
     trainer = Predictor_Trainer()
     dataset, test_set = load_snp_data_with_labels_for_kfolds()
     test_loader = torch.utils.data.DataLoader(test_set, batch_size = 1, shuffle = False)
     kf = KFold(n_splits=10, shuffle=True)
     model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
     optimizer = get_optimizer('Adam', model, learning_rate)
-    model, test_losses, train_losses = trainer.kfolds_train(model, kf, dataset, optimizer, epochs, clip, 0.5)
+    model, test_loss, train_losses = trainer.kfolds_train(model, kf, dataset, optimizer, epochs, clip, 0.5)
     final_test_loss = trainer.test(model, test_loader)
     torch.save(model, 'lstm_ae_snp500_model.pth')
-    save_script_out_to_json({'test_loss' : final_test_loss[0],
-                            'test_loss_percentile' : final_test_loss[1],
+    save_script_out_to_json({'final_test_loss' : final_test_loss,
+                             'folds_test_loss' : test_loss,
                             'train_loss' : train_losses}, 'scripts_out.json')
     torch.save(test_set, 'scripts_test_data.pt')
 
@@ -132,17 +132,18 @@ def k_folds_train_predictor_model():
 
 
 def main():
-    args = parse_args()
-    if args.function == 'find_best_reconstruction_model':
-        find_best_reconstruction_model()
-    elif args.function == 'find_best_prediction_model':
-        find_best_prediction_model()
-    elif args.function == 'k_folds_find_best_reconstruction_model':
-        k_folds_find_best_reconstruction_model()
-    elif args.function == 'k_folds_train_predictor_model':
-        k_folds_train_predictor_model()
-    else:
-        raise ValueError('Invalid function')
+    k_folds_train_predictor_model()
+    # args = parse_args()
+    # if args.function == 'find_best_reconstruction_model':
+    #     find_best_reconstruction_model()
+    # elif args.function == 'find_best_prediction_model':
+    #     find_best_prediction_model()
+    # elif args.function == 'k_folds_find_best_reconstruction_model':
+    #     k_folds_find_best_reconstruction_model()
+    # elif args.function == 'k_folds_train_predictor_model':
+    #     k_folds_train_predictor_model()
+    # else:
+    #     raise ValueError('Invalid function')
 
 
 if __name__ == '__main__':
