@@ -7,6 +7,7 @@ import pandas as pd
 import random
 from datetime import datetime, timedelta
 from Utils import save_script_out_to_json, load_script_out_from_json
+from sklearn.preprocessing import MinMaxScaler
 
 
 def split_dataset(dataset, batch_size, train_size=0.6, test_size=0.2, shuffle = (True, False, False), save_test = False):
@@ -59,9 +60,14 @@ def get_snp_stock_max_high(data, company):
     return data['high'].max()
 
 def normalise_company(data, company):
-    max_high = get_snp_stock_max_high(data, company)
-    data.loc[data['symbol'] == company, 'high'] /= max_high
+    company_data = data[data['symbol'] == company]['high'].to_numpy()
+    scaler = MinMaxScaler()
+    company_data = company_data.reshape(-1, 1)
+    company_data = scaler.fit_transform(company_data)
+    data.loc[data['symbol'] == company, 'high'] = company_data
     return data
+
+
 
 def normalise_snp_data(data):
     companies = set(data['symbol'])
@@ -250,7 +256,7 @@ def load_snp_data_with_labels_for_kfolds (train_size=0.9, test_size=0.1):
     data, labels = generate_snp_data_with_labels()
     dataset = torch.utils.data.TensorDataset(data, labels)
     train_set, test_set = torch.utils.data.random_split(dataset, [train_size, test_size])
-    return test_set, train_set
+    return train_set, test_set
 
 
 def save_companies_max_values(data):

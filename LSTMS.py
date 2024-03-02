@@ -1,7 +1,7 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-from Trainers import Basic_Trainer, Classifier_Trainer, Predictor_Trainer
+from Trainers import Basic_Trainer, Classifier_Trainer
 
 '''basic LSTM AE as in the diagram. used in lstm_ae_toy.py and as a basis to other models'''
 class LSTM_AE(nn.Module):
@@ -153,6 +153,8 @@ class LSTM_AE_PREDICTOR_V2 (nn.Module):
         #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
+        #set the last element in the sequence to 0, as it is the prediction target:
+        x[:, -1, :] = 0
         prediction = self.prediction_ae(x)
         return dec, prediction
 

@@ -75,7 +75,7 @@ def find_best_prediction_model():
 def k_folds_find_best_reconstruction_model():
     input_size = 1
     hidden_sizes = [8, 16, 32]
-    layers = 1
+    layers = 3
     epochs = 1000
     learning_rates = [0.1, 0.01, 0.001]
     gradient_clipping = [1,5]
@@ -107,26 +107,61 @@ def k_folds_find_best_reconstruction_model():
                             'final_test_loss' : final_test_loss[0],
                             'final_test_loss_percentile' : final_test_loss[1],
                             'train_loss' : best_train_loss}, 'scripts_out.json')
+    
+
+def kfolds_train(trainer, model_args, kf ,train_data, optimizer_args, epochs, gradient_clipping, recon_dominance, batch_size=128):
+    best_model = None
+    best_test_loss = float('inf')
+    for fold, (train_idx, test_idx) in enumerate(kf.split(train_data)):
+        print (f"Fold {fold} started.")
+        train_set = torch.utils.data.Subset(train_data, train_idx)
+        test_set = torch.utils.data.Subset(train_data, test_idx)
+        train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
+        test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
+        trainer.recon_criterion = torch.nn.MSELoss()
+        trainer.pred_criterion = torch.nn.MSELoss()
+        # cur_model = copy.deepcopy(model)
+        # cur_optimizer = copy.deepcopy(optimizer)
+        cur_model = LSTM_AE_PREDICTOR_V2(*model_args)
+        optim_name, learning_rate = optimizer_args
+        cur_optimizer = get_optimizer(optim_name, cur_model, learning_rate)
+        train_losses, recon_losses, pred_losses = trainer.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
+        test_loss = trainer.test(cur_model, test_loader, recon_dominance)
+        if test_loss < best_test_loss:
+            best_test_loss = test_loss
+            best_train_losses = (train_losses, recon_losses, pred_losses)
+            best_model = cur_model
+    return best_model, best_test_loss, best_train_losses 
 
 def k_folds_train_predictor_model():
-    hidden_size = 8
-    input_size, layers = 1,1
-    learning_rate = 0.01
+    hidden_size = 16
+    input_size = 1
+    layers = 1
+    learning_rate = 0.001
     clip = 5
-    epochs = 100
+    epochs = 20
     trainer = Predictor_Trainer()
     dataset, test_set = load_snp_data_with_labels_for_kfolds()
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size = 1, shuffle = False)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size = 100000, shuffle = False)
     kf = KFold(n_splits=10, shuffle=True)
-    model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
-    optimizer = get_optimizer('Adam', model, learning_rate)
-    model, test_loss, train_losses = trainer.kfolds_train(model, kf, dataset, optimizer, epochs, clip, 0.5)
-    final_test_loss = trainer.test(model, test_loader)
+    # model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
+    # optimizer = get_optimizer('Adam', model, learning_rate)
+    model_args = (input_size, hidden_size, layers)
+    optimizer_args = ('Adam', learning_rate)
+    # dl = torch.utils.data.DataLoader(dataset, batch_size = 128, shuffle = True)
+    # trainer.train(model, dl, optimizer, epochs, clip, 0.5)
+    model, test_loss, train_losses = kfolds_train(trainer, model_args, kf, dataset, optimizer_args, epochs, clip, 0.5)
+    print ("im here1")
+    final_test_loss = trainer.test(model, test_loader, 0.5)
+    print ("im here2")
     torch.save(model, 'lstm_ae_snp500_model.pth')
+    print ("im here3")
     save_script_out_to_json({'final_test_loss' : final_test_loss,
                              'folds_test_loss' : test_loss,
                             'train_loss' : train_losses}, 'scripts_out.json')
+    print ("im here4")
     torch.save(test_set, 'scripts_test_data.pt')
+    print ("im here5")
 
     
 

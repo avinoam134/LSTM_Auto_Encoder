@@ -226,7 +226,7 @@ class Predictor_Trainer:
                 recon_loss = self.recon_criterion(reconstructions, sequences.reshape((batch_size, -1, self.input_size)))
                 epoch_recon_losses.append(recon_loss.item())        
                 # Compute classification loss (Cross-Entropy)
-                pred_loss = self.pred_criterion(predictions.reshape((batch_size, -1, self.input_size)), labels.reshape((batch_size, -1, self.input_size))) 
+                pred_loss = self.pred_criterion(predictions.reshape((batch_size, -1,self.input_size)), labels.reshape((batch_size, -1,self.input_size))) 
                 epoch_pred_losses.append(pred_loss.item())     
                 # Total loss
                 loss = (recon_dominance)*recon_loss + (1-recon_dominance)*pred_loss
@@ -239,7 +239,7 @@ class Predictor_Trainer:
             recon_losses.append(np.mean(np.array(epoch_recon_losses)))
             pred_losses.append(np.mean(np.array(epoch_pred_losses)))
             all_losses.append(np.mean(np.array(epoch_total_losses)))
-            print ("epoch: ", epoch, "loss: ", epoch_total_losses[-1])
+            print ("epoch: ", epoch, "loss: ", all_losses[-1])
         return all_losses, recon_losses, pred_losses
 
 
@@ -271,15 +271,15 @@ class Predictor_Trainer:
             test_set = torch.utils.data.Subset(train_data, test_idx)
             train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
             test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
+            self.recon_criterion = torch.nn.MSELoss()
+            self.pred_criterion = torch.nn.MSELoss()
             cur_model = copy.deepcopy(model)
             cur_optimizer = copy.deepcopy(optimizer)
             train_losses, recon_losses, pred_losses = self.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
-            test_loss = self.test(model, test_loader, recon_dominance)
+            test_loss = self.test(cur_model, test_loader, recon_dominance)
             if test_loss < best_test_loss:
                 best_test_loss = test_loss
                 best_train_losses = (train_losses, recon_losses, pred_losses)
                 best_model = cur_model
-            #todo: save all the train losseses
-            #make a percentile loss for test and save it aswell
         return best_model, best_test_loss, best_train_losses 
 
