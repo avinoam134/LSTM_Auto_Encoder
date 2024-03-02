@@ -2,6 +2,7 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 from Trainers import Basic_Trainer, Classifier_Trainer
+from copy import deepcopy
 
 '''basic LSTM AE as in the diagram. used in lstm_ae_toy.py and as a basis to other models'''
 class LSTM_AE(nn.Module):
@@ -154,8 +155,9 @@ class LSTM_AE_PREDICTOR_V2 (nn.Module):
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
         #set the last element in the sequence to 0, as it is the prediction target:
-        x[:, -1, :] = 0
-        prediction = self.prediction_ae(x)
+        y = deepcopy(x)
+        y[:, -1, :] = 0
+        prediction = self.prediction_ae(y)
         return dec, prediction
 
 def get_model_and_trainer(model_name, input_size, hidden_size):

@@ -139,11 +139,11 @@ def k_folds_train_predictor_model():
     layers = 1
     learning_rate = 0.001
     clip = 5
-    epochs = 20
+    epochs = 10
     trainer = Predictor_Trainer()
     dataset, test_set = load_snp_data_with_labels_for_kfolds()
     test_loader = torch.utils.data.DataLoader(test_set, batch_size = 100000, shuffle = False)
-    kf = KFold(n_splits=10, shuffle=True)
+    kf = KFold(n_splits=2, shuffle=True)
     # model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
     # optimizer = get_optimizer('Adam', model, learning_rate)
     model_args = (input_size, hidden_size, layers)

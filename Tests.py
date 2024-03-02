@@ -305,13 +305,39 @@ def show_original_vs_prediction():
     recon, pred = model(test_samples)
     fig, ax = plt.subplots(1, 2)
 
+def show_pre_trained_model_prediction_and_reconstruction():
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    test_data = torch.load('scripts_test_data.pt')
+    training_dict = load_script_out_from_json('scripts_out.json')
+    losses = training_dict['train_loss']
+    train_losses, recon_losses, pred_losses = losses[0], losses[1], losses[2]
+    #test the model on 2 samples from the test data:
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 30, shuffle = False)
+    (test_samples, lables) = next(iter(test_loader))
+    labels_last_days = lables[:-1]
+    recon, pred = model(test_samples)
+    pred_last_days = pred[:-1]
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Reconstruction vs. Prediction vs Original Stock Prices')
+    for i in range(2):
+        #ax[i].plot(test_samples[i], label='Original 1Day Early')
+        #ax[i].plot(lables[i], label='Original 1Day Later')
+        #ax[i].plot(recon[i].detach().numpy(), label='Reconstruction')
+        #ax[i].plot(pred[i].detach().numpy(), label='Prediction')
+        #ax[i].plot(labels_last_days[i].detach().numpy(), label='Originals Last Days')
+        #ax[i].plot(pred_last_days[i].detach().numpy(), label='Predictions Last Days')
+        #ax[i].legend()
+        continue
+    plt.show()
+
+
     
 
 
 
 
 def main():
-    show_original_vs_prediction()
+    show_pre_trained_model_prediction_and_reconstruction()
 
 if __name__ == '__main__':
     main()
