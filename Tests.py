@@ -1,22 +1,20 @@
-import scripts.lstm_ae_mnist as lstm_ae_mnist, scripts.lstm_ae_toy as lstm_ae_toy
-from code.LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
-from code.Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data
-from code.Utils import load_script_out_from_json
+from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4
+from Data_Generators import generate_syntethic_data, load_syntethic_data, load_MNIST_data, generate_snp_company_with_dates, load_snp_data
+from Utils import load_script_out_from_json
 import matplotlib.pyplot as plt
 import subprocess
 import numpy as np
 import torch
 import os
 
-rel_out_path = os.path.join('.', 'outputs')
-rel_scrpt_path = os.path.join('.', 'scripts')
-scripts_out_path = os.path.join(rel_scrpt_path, 'scripts_out.json')
-toy_model_path = os.path.join(rel_out_path, 'lstm_ae_toy_model.pth')
-toy_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_toy.py')
-mnist_model_path = os.path.join(rel_out_path, 'lstm_ae_mnist_model.pth')
-mnist_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_mnist.py')
-snp_model_path = os.path.join(rel_out_path, 'lstm_ae_snp500_model.pth')
-snp_script_path = os.path.join(rel_scrpt_path, 'lstm_ae_snp500.py')
+
+scripts_out_path = 'scripts_out.json'
+toy_model_path = 'lstm_ae_toy_model.pth'
+toy_script_path = 'lstm_ae_toy.py'
+mnist_model_path =  'lstm_ae_mnist_model.pth'
+mnist_script_path = 'lstm_ae_mnist.py'
+snp_model_path = 'lstm_ae_snp500_model.pth'
+snp_script_path = 'lstm_ae_snp500.py'
 
 
 def P1_Q1_plot_signal_vs_time():
@@ -175,7 +173,7 @@ def get_best_mnist_model(input_size = 28, hidden_size = 8,  epochs = 10, learnin
 
 def P2_Q1_reconstruct_mnist_images(model = None):
     if model is None:
-        model, _ = get_best_mnist_model(dry_run=True, model = 'LSTM_AE_CLASSIFIER_V1')
+        model, _ = get_best_mnist_model(dry_run=False, model = 'LSTM_AE_CLASSIFIER_V1')
     _, test_loader = load_MNIST_data(128)
     #make test_samples contain 2 single samples from the test_loader:
     test_samples, _ = next(iter(test_loader))
@@ -194,11 +192,13 @@ def P2_Q1_reconstruct_mnist_images(model = None):
 
 
 def P2Q2_train_and_plot_mnist_classifier_and_reconstructor():
-    _, _ = get_best_mnist_model(classify=False)
+    #_, _ = get_best_mnist_model(classify=False)
     reconstructor_dict = load_script_out_from_json(scripts_out_path)
     _, _ = get_best_mnist_model(classify=True)
     classifier_dict = load_script_out_from_json(scripts_out_path)
     fig, ax = plt.subplots(1,2)
+    #add a title for the entire plot:
+    fig.suptitle('Accuracy: ' + str(format(classifier_dict['accuracies'][-1], ".2f"))  + '         Model: LSTM_AE_CLASSIFIER_V4' , color='red')
     ax[0].set_title('Reconstruction Architechture Loss')
     ax[1].set_title('Classification Architecture Accuracy & Loss')
     ax[0].plot(reconstructor_dict['losses'])
@@ -232,10 +232,111 @@ def P2Q3_reconstruct_and_classify_over_1_input_size():
     plt.show()
 
 
+def P3Q1_show_snp500_data():
+    amazon = generate_snp_company_with_dates('AMZN')
+    googe = generate_snp_company_with_dates('GOOGL')
+    data_dict = {"AMZN": amazon, "GOOGL": googe}
+    #show 2 figures side by side of each comany's stock price over time:
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Stock Price vs. Date')
+    for i,name in enumerate(["AMZN", "GOOGL"]):
+        data = data_dict[name]
+        ax[i].plot(data[:,0], data[:,1], label=name)
+        ax[i].set_xlabel('Date')
+        ax[i].set_ylabel('Price')
+        ax[i].set_title(f'Price vs. Date - {name}')
+        ax[i].legend()
+        ax[i].tick_params(rotation=45) 
+    plt.tight_layout()
+    plt.show()
+
+
+def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'find_best_reconstruction_model'], text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    out_dict = load_script_out_from_json('scripts_out.json')
+    params= out_dict['best_params']
+    test_data = out_dict['test_loader']
+    print (f"Best Hyperparameters:\nhidden_size - {params[0]}, learning_rate: {params[1]}, gradient_clip: {params[2]}")
+    _, test_loader, _ = load_snp_data('AMZN')
+    test_samples = [next(iter(test_loader))[0].unsqueeze(-1), next(iter(test_loader))[1].unsqueeze(-1)]
+    test_samples = torch.tensor(np.array(test_samples))
+    test_samples_reconstruction = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Stock Price vs. Date')
+    for i in range(2):
+        ax[i].plot(test_samples[i], label='Original')
+        ax[i].plot(test_samples_reconstruction[i].detach().numpy(), label='Reconstruction')
+        ax[i].legend()
+    plt.show()
+
+
+
+def P3Q3_find_best_prediction_model():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'k_folds_find_best_reconstruction_model'], text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    params_n_loss = load_script_out_from_json('scripts_out.json')
+    params = params_n_loss['best_params']
+    loss = params_n_loss['final_test_loss']
+    print (f"Best Hyperparameters:\nhidden_size - {params[0]}, learning_rate: {params[1]}, gradient_clip: {params[2]}, final_loss = {loss}")
+
+
+def show_original_vs_prediction():
+    result = subprocess.run(['python3', 'lstm_ae_snp500.py', '--function', 'k_folds_train_predictor_model'], text=True, capture_output=True)
+    print (result.stderr)
+    print (result.stdout)
+    test_data = torch.load('scripts_test_data.pt')
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 2, shuffle = False)
+    test_samples = next(iter(test_loader))
+    recon, pred = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Reconstruction vs. Prediction vs Original Stock Prices')
+    for i in range(2):
+        ax[i].plot(test_samples[i], label='Original')
+        ax[i].plot(recon[i].detach().numpy(), label='Reconstruction')
+        ax[i].plot(pred[i].detach().numpy(), label='Prediction')
+        ax[i].legend()
+    test_samples = torch.tensor(np.array(test_samples))
+    recon, pred = model(test_samples)
+    fig, ax = plt.subplots(1, 2)
+
+def show_pre_trained_model_prediction_and_reconstruction():
+    model = torch.load('lstm_ae_snp500_model.pth').eval()
+    test_data = torch.load('scripts_test_data.pt')
+    training_dict = load_script_out_from_json('scripts_out.json')
+    losses = training_dict['train_loss']
+    train_losses, recon_losses, pred_losses = losses[0], losses[1], losses[2]
+    #test the model on 2 samples from the test data:
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size = 30, shuffle = False)
+    (test_samples, lables) = next(iter(test_loader))
+    labels_last_days = lables[:-1]
+    recon, pred = model(test_samples)
+    pred_last_days = pred[:-1]
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Reconstruction vs. Prediction vs Original Stock Prices')
+    for i in range(2):
+        #ax[i].plot(test_samples[i], label='Original 1Day Early')
+        ax[i].plot(lables[i], label='Original 1Day Later')
+        #ax[i].plot(recon[i].detach().numpy(), label='Reconstruction')
+        ax[i].plot(pred[i].detach().numpy(), label='Prediction')
+        #ax[i].plot(labels_last_days[i].detach().numpy(), label='Originals Last Days')
+        #ax[i].plot(pred_last_days[i].detach().numpy(), label='Predictions Last Days')
+        ax[i].legend()
+    plt.show()
+
+
+    
+
+
+
 
 def main():
-    _, acc = get_best_mnist_model()
-    print (acc)
+    show_pre_trained_model_prediction_and_reconstruction()
 
 if __name__ == '__main__':
     main()
