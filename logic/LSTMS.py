@@ -1,7 +1,6 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-from Trainers import Basic_Trainer, Classifier_Trainer
 from copy import deepcopy
 
 '''basic LSTM AE as in the diagram. used in lstm_ae_toy.py and as a basis to other models'''
@@ -115,14 +114,14 @@ class LSTM_AE_CLASSIFIER_V4 (nn.Module):
         )
 
     def forward(self, x):
-        #reshape x to match the the reconstructor input size:
-        #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
         classification = self.classifier_ae(x)
         classification = self.classifier(classification[:, -1, :])
         return dec, classification
     
+
+'''A predictor from a sequence of days to the next day'''    
 class LSTM_AE_PREDICTOR (nn.Module):
     def __init__(self, input_size=1, hidden_size=16, layers=1):
         super(LSTM_AE_PREDICTOR, self).__init__()
@@ -141,7 +140,8 @@ class LSTM_AE_PREDICTOR (nn.Module):
         prediction = self.predictor(prediction[:, -1, :])
         return dec, prediction
     
-
+'''A predictor from a sequence of days TO ANOTHER SEQUENCE of the input days shifted by 1,
+but prediction is initialised with the real value of the shared days with the input sequence'''
 class LSTM_AE_PREDICTOR_V2 (nn.Module):
     def __init__(self, input_size=1, hidden_size=16, layers=1):
         super(LSTM_AE_PREDICTOR_V2, self).__init__()
@@ -150,53 +150,24 @@ class LSTM_AE_PREDICTOR_V2 (nn.Module):
         
 
     def forward(self, x):
-        #reshape x to match the the reconstructor input size:
-        #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
-        #set the last element in the sequence to 0, as it is the prediction target:
         y = deepcopy(x)
         y[:, -1, :] = 0
         prediction = self.prediction_ae(y)
         return dec, prediction
     
-
+'''A predictor from a sequence of days TO ANOTHER SEQUENCE of the input days shifted by 1, only '''
 class LSTM_AE_PREDICTOR_V3 (nn.Module):
     def __init__(self, input_size=1, hidden_size=16, layers=1):
         super(LSTM_AE_PREDICTOR_V3, self).__init__()
         self.reconstructor_ae = LSTM_AE(input_size, hidden_size, layers)
         self.prediction_ae = LSTM_AE(input_size, hidden_size, layers)
         
-
     def forward(self, x):
-        #reshape x to match the the reconstructor input size:
-        #x.shape[0] should stay the same, x.shape[2] should be input_size and x.shape[1] should be the matching to the other two:
         x = x.reshape(x.shape[0], -1, self.reconstructor_ae.input_size)
         dec = self.reconstructor_ae(x)
-        #set the last element in the sequence to 0, as it is the prediction target:
         prediction = self.prediction_ae(x)
         return dec, prediction
 
-def get_model_and_trainer(model_name, input_size, hidden_size):
-    clas_trainer = Classifier_Trainer(nn.MSELoss(), nn.CrossEntropyLoss(), input_size)
-    basic_trainer = Basic_Trainer(nn.MSELoss())
-    pred_trainer =  Classifier_Trainer(nn.MSELoss(), nn.MSELoss(), input_size)
-    if model_name == 'LSTM_AE':
-        return LSTM_AE(input_size, hidden_size, 1), basic_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V1':
-        return LSTM_AE_CLASSIFIER_V1(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V2':
-        return LSTM_AE_CLASSIFIER_V2(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V3':
-        return LSTM_AE_CLASSIFIER_V3(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V4':
-        return LSTM_AE_CLASSIFIER_V4(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V3_Experimental':
-        return LSTM_AE_CLASSIFIER_V3_Experimental(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_CLASSIFIER_V4_Experimental':
-        return LSTM_AE_CLASSIFIER_V4_Experimental(input_size, hidden_size, 1), clas_trainer
-    elif model_name == 'LSTM_AE_PREDICTOR':
-        return LSTM_AE_PREDICTOR(input_size, hidden_size, 1), pred_trainer
 
-    else:
-        raise ValueError('Invalid model name')

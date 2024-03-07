@@ -1,184 +1,197 @@
 import torch
+import torch.utils.data
 import numpy as np
-from Utils import parse_args, get_optimizer, save_script_out_to_json, os
-from Data_Generators import load_snp_data, load_snp_data_for_cross_validation, load_snp_data_with_labels_for_cross_validation, load_snp_data_with_labels_for_kfolds
-from LSTMS import LSTM_AE, LSTM_AE_CLASSIFIER_V1, LSTM_AE_CLASSIFIER_V2, LSTM_AE_CLASSIFIER_V3, LSTM_AE_CLASSIFIER_V4, LSTM_AE_PREDICTOR, LSTM_AE_PREDICTOR_V2, LSTM_AE_PREDICTOR_V3 ,get_model_and_trainer
-from Trainers import Basic_Trainer, Predictor_Trainer
-from sklearn.model_selection import KFold, TimeSeriesSplit
+import matplotlib.pyplot as plt
+import os.path as path
+from logic.Utils import parse_args, save_script_out_to_json, load_script_out_from_json, denormalize_sequence, denormalize_sequences
+from logic.Data_Generators import load_snp_data_for_kfolds, load_snp_data_with_labels_for_kfolds, generate_snp_company_with_dates
+from logic.LSTMS import LSTM_AE, LSTM_AE_PREDICTOR, LSTM_AE_PREDICTOR_V2, LSTM_AE_PREDICTOR_V3
+from logic.Trainers import Basic_Trainer, Predictor_Trainer, kfolds_train
 
 
-def find_best_reconstruction_model():
-    input_size = 1
-    hidden_sizes = [8, 16, 32]
-    layers = 1
-    epochs = 10000
-    learning_rates = [0.1, 0.01, 0.001]
-    gradient_clipping = [1,5]
-    trainer = Basic_Trainer(torch.nn.MSELoss())
-    data_loaders = load_snp_data_for_cross_validation()
-    best_loss = float('inf')
-    best_params = None
-    best_model = None
-    test_data = None
-    #create an iterator for data_loaders:
-    data_loaders_iter = iter(data_loaders)
-    for hidden_size in hidden_sizes:
-        for learning_rate in learning_rates:
-            for clip in gradient_clipping:
-                model = LSTM_AE(input_size, hidden_size, layers)
-                train_loader, test_loader, val_loader = next(data_loaders_iter)
-                optimizer = get_optimizer('Adam', model, learning_rate)
-                trainer.train(model, train_loader, optimizer, epochs, clip)
-                cur_loss = trainer.test(model, val_loader)
-                if cur_loss < best_loss:
-                    best_loss = cur_loss
-                    best_params = (hidden_size, learning_rate, clip)
-                    best_model = model
-                    test_data = test_loader
-    torch.save(best_model, 'lstm_ae_snp500_model.pth')
-    save_script_out_to_json({'best_params': best_params,
-                             'test_loader' : test_data}, 'scripts_out.json')
-    
-def find_best_prediction_model():
-    input_size = 1
-    hidden_sizes = [8, 16, 32]
-    layers = 1
-    epochs = 10000
-    learning_rates = [0.1, 0.01, 0.001]
-    gradient_clipping = [1,5]
-    trainer = Predictor_Trainer(torch.nn.MSELoss(), torch.nn.MSELoss())
-    data_loaders = load_snp_data_with_labels_for_cross_validation()
-    best_loss = float('inf')
-    best_params = None
-    best_model = None
-    test_data = None
-    #create an iterator for data_loaders:
-    data_loaders_iter = iter(data_loaders)
-    for hidden_size in hidden_sizes:
-        for learning_rate in learning_rates:
-            for clip in gradient_clipping:
-                model = LSTM_AE_PREDICTOR(input_size, hidden_size, layers)
-                train_loader, test_loader, val_loader = next(data_loaders_iter)
-                optimizer = get_optimizer('Adam', model, learning_rate)
-                trainer.train(model, train_loader, optimizer, epochs, clip)
-                cur_loss = trainer.test(model, val_loader)
-                if cur_loss < best_loss:
-                    best_loss = cur_loss
-                    best_params = (hidden_size, learning_rate, clip)
-                    best_model = model
-                    test_data = test_loader
-    final_test_loss = trainer.test(best_model, test_data)
-    torch.save(best_model, 'lstm_ae_snp500_model.pth')
-    save_script_out_to_json({'best_params': best_params,
-                             'test_loss' : final_test_loss}, 'scripts_out.json')
+SNP_PATH = path.join('outputs', 'snp500')
+SNP_VIS_SAMPLES = path.join(SNP_PATH, 'snp500_visualization_samples.json')
 
-def k_folds_find_best_reconstruction_model():
-    input_size = 1
-    hidden_sizes = [8, 16, 32]
-    layers = 3
-    epochs = 1000
-    learning_rates = [0.1, 0.01, 0.001]
-    gradient_clipping = [1,5]
-    hyperparams = [(hidden_sizes[i], learning_rates[j], gradient_clipping[k]) for i in range(3) for j in range(3) for k in range(2)]
+SNP_RECON_MODEL = path.join(SNP_PATH, 'snp500_recon_model.pth')
+SNP_RECON_DATA = path.join(SNP_PATH, 'snp500_recon_data.json')
+SNP_RECON_TEST = path.join(SNP_PATH, 'snp500_recon_test.pt')
+
+
+SNP_PREDICT_MODEL = path.join(SNP_PATH, 'snp500_pred_model.pth')
+SNP_PREDICT_DATA = path.join(SNP_PATH, 'snp500_pred_data.json')
+SNP_PREDICT_TEST = path.join(SNP_PATH, 'snp500_pred_test.pt')
+
+
+
+def P3Q1_show_snp500_data():
+    amazon = generate_snp_company_with_dates('AMZN')
+    googe = generate_snp_company_with_dates('GOOGL')
+    data_dict = {"AMZN": amazon, "GOOGL": googe}
+    fig, ax = plt.subplots(1, 2)
+    fig.suptitle('Stock Price vs. Date')
+    for i,name in enumerate(["AMZN", "GOOGL"]):
+        data = data_dict[name]
+        ax[i].plot(data[:,0], data[:,1], label=name)
+        ax[i].set_xlabel('Date')
+        ax[i].set_ylabel('Price')
+        ax[i].set_title(f'Price vs. Date - {name}')
+        ax[i].legend()
+        ax[i].tick_params(rotation=45) 
+    plt.tight_layout()
+    plt.show()
+
+
+def find_best_reconstruction_hyperparams(args):
+    args.model = 'LSTM_AE'
+    dataset, testset = load_snp_data_for_kfolds()
+    best_model, res_dict = kfolds_train(args, dataset, tune_hyperparams=True)
+    torch.save(best_model, SNP_RECON_MODEL)
+    save_script_out_to_json(res_dict, SNP_RECON_DATA)
+    torch.save(testset, SNP_RECON_TEST)
+
+def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data(args):
+    if not(args.dry_run):
+        find_best_reconstruction_hyperparams(args)
+    best_model = torch.load(SNP_RECON_MODEL)
+    res_dict = load_script_out_from_json(SNP_RECON_DATA)
+    testset = torch.load(SNP_RECON_TEST)
+    hidden_size, learning_rate, gradient_clip = res_dict['hidden_size'], res_dict['learning_rate'], res_dict['gradient_clipping']
+    pre_extracted_data_sequences = load_script_out_from_json(SNP_VIS_SAMPLES)
+    companies = ['AMZN', 'GOOGL', 'AAPL']
+    for company in companies:
+        sample = pre_extracted_data_sequences[company]["sample"]
+        sample_tensorized = torch.tensor(sample, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+        sample_reconstruction = best_model(sample_tensorized)
+        sample_denormalized = denormalize_sequence(sample_tensorized, company)
+        recon_denormalized = denormalize_sequence(sample_reconstruction.detach().numpy(), company)
+        plt.plot(sample_denormalized, label=f'{company}-Original', linewidth=4, alpha=0.5)
+        plt.plot(recon_denormalized, label=f'{company}-Reconstruction', linewidth=2)
+    plt.title(f'Learning-rate: {learning_rate}, Hidden-size: {hidden_size}, Gradient-clip: {gradient_clip}')
+    plt.legend()
+    plt.show()
+
+def train_best_prediction_model(args):
+    args.model = 'LSTM_AE_PREDICTOR_V3'
+    args.hidden_size = 32
+    args.learning_rate = 0.01
+    args.gradient_clipping = 5
+    dataset, testset = load_snp_data_with_labels_for_kfolds()
+    best_model, res_dict = kfolds_train(args, dataset, tune_hyperparams=False)
+    torch.save(best_model, SNP_PREDICT_MODEL)
+    save_script_out_to_json(res_dict, SNP_PREDICT_DATA)
+    torch.save(testset, SNP_PREDICT_TEST)
+
+
+
+def P3Q3_train_prediction_model_and_plot_losses_and_predictions(args):
+    if not(args.dry_run):
+        train_best_prediction_model(args)
+    best_model = torch.load(SNP_PREDICT_MODEL).eval()
+    res_dict = load_script_out_from_json(SNP_PREDICT_DATA)
+    testset = torch.load(SNP_PREDICT_TEST)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=len(testset), shuffle=False)
     trainer = Predictor_Trainer()
-    dataset, test_set = load_snp_data_with_labels_for_kfolds()
-    # train_loader = torch.utils.data.DataLoader(dataset, batch_size = 1, shuffle = False)
-    test_data = torch.utils.data.DataLoader(test_set, batch_size = 1, shuffle = False)
-    best_loss = float('inf')
-    best_params = None
-    best_model = None
-    best_train_loss = float('inf')
-    kf = KFold(n_splits=10, shuffle=True)
-    for hidden_size, learning_rate, clip in hyperparams:
-        model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
-        optimizer = get_optimizer('Adam', model, learning_rate)
-        model, test_losses, train_losses = trainer.kfolds_train(model, kf, dataset, optimizer, epochs, clip, 0.5)
-        if test_losses[0] < best_loss:
-            best_loss = test_losses[0]
-            best_loss_percentile = test_losses[1]
-            best_params = (hidden_size, learning_rate, clip)
-            best_model = model
-            best_train_losses = train_losses
-    final_test_loss = trainer.test(best_model, test_data)
-    torch.save(best_model, 'lstm_ae_snp500_model.pth')
-    save_script_out_to_json({'best_params': best_params,
-                            'fold_test_loss' : best_loss,
-                            'fold_test_loss_percentile' : best_loss_percentile,
-                            'final_test_loss' : final_test_loss[0],
-                            'final_test_loss_percentile' : final_test_loss[1],
-                            'train_loss' : best_train_loss}, 'scripts_out.json')
-    
+    final_test_loss = trainer.test(best_model, test_loader)['test_loss']
+    recon_losses = res_dict['recon_losses']
+    pred_losses = res_dict['pred_losses']
+    lr, hs, gc = res_dict['learning_rate'], res_dict['hidden_size'], res_dict['gradient_clipping']
+    some_companies = ['AAL', 'AAPL', 'AMZN', 'GOOGL', 'MSFT', 'QCOM', 'CAT',
+                      'IVZ', 'WMT', 'XOM', 'FB', 'EXR', 'AMD', 'NVDA',
+                      'INTC', 'CSCO',  'NFLX', 'NKE', 'ORCL', 'CLX']
+    pre_extracted_data_sequences = load_script_out_from_json(SNP_VIS_SAMPLES)
+    labels_final_day = []
+    pred_final_day = []
+    amazon_data = None
+    for company in some_companies:
+        sample_n_label = pre_extracted_data_sequences[company]
+        sample = np.array(sample_n_label['sample'])
+        sample_tensorised = torch.tensor(sample, dtype=torch.float32).unsqueeze(0)
+        label = np.array(sample_n_label['test'])
+        recon, pred = best_model(sample_tensorised)
+        sample_denorm, label_denorm, recon_denorm, pred_denorm = denormalize_sequences([sample, label, recon.detach().numpy(), pred.detach().numpy()], company)
+        labels_final_day.append(label[-1])
+        pred_final_day.append(pred.detach().numpy().reshape(-1)[-1])
+        if company == 'AAPL':
+            amazon_data = (sample_denorm, label_denorm, recon_denorm, pred_denorm)
+    # ax0 - plot the train recon losses and pred losses
+    # ax1 - plot apple's original, label, recon and pred
+    # ax2 - plot the final day labels vs predictions
+    fig, ax = plt.subplots(2, 2)
+    fig.suptitle(f'Learning-rate: {lr}, Hidden-size: {hs}, Gradient-clip: {gc}\nFinal Test Loss: {final_test_loss}', color='red')
+    ax[0,0].set_title('Reconstruction and Prediction Losses')
+    ax[0,0].plot(recon_losses, label='Reconstruction Loss')
+    ax[0,0].plot(pred_losses, label='Prediction Loss')
+    ax[0,0].legend()
+    ax[0,1].set_title('Final Day Only In 20 Companies')
+    ax[0,1].plot(labels_final_day, label='Labels')
+    ax[0,1].plot(pred_final_day, label='Predictions')
+    ax[0,1].legend()
+    ax[1,0].set_title('Apple Reconstruction')
+    ax[1,0].plot(amazon_data[0], label='Original')
+    ax[1,0].plot(amazon_data[2], label='Reconstruction')
+    ax[1,0].legend()
+    ax[1,1].set_title('Apple Prediction')
+    ax[1,1].plot(amazon_data[1], label='Label')
+    ax[1,1].plot(amazon_data[3], label='Prediction')
+    ax[1,1].legend()
+    plt.show()
 
-def kfolds_train(trainer, model_args, kf ,train_data, optimizer_args, epochs, gradient_clipping, recon_dominance, batch_size=128):
-    best_model = None
-    best_test_loss = float('inf')
-    for fold, (train_idx, test_idx) in enumerate(kf.split(train_data)):
-        print (f"Fold {fold} started.")
-        train_set = torch.utils.data.Subset(train_data, train_idx)
-        test_set = torch.utils.data.Subset(train_data, test_idx)
-        train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True)
-        test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=True)
-        trainer.recon_criterion = torch.nn.MSELoss()
-        trainer.pred_criterion = torch.nn.MSELoss()
-        # cur_model = copy.deepcopy(model)
-        # cur_optimizer = copy.deepcopy(optimizer)
-        cur_model = LSTM_AE_PREDICTOR_V3(*model_args)
-        optim_name, learning_rate = optimizer_args
-        cur_optimizer = get_optimizer(optim_name, cur_model, learning_rate)
-        train_losses, recon_losses, pred_losses = trainer.train(cur_model, train_loader, cur_optimizer, epochs, gradient_clipping, recon_dominance)
-        test_loss = trainer.test(cur_model, test_loader, recon_dominance)
-        if test_loss < best_test_loss:
-            best_test_loss = test_loss
-            best_train_losses = (train_losses, recon_losses, pred_losses)
-            best_model = cur_model
-    return best_model, best_test_loss, best_train_losses 
+def P3Q4_train_predictor_model_and_perform_multi_step_predictions(args):
+    if not(args.dry_run):
+        train_best_prediction_model(args)
+    best_model = torch.load(SNP_PREDICT_MODEL)
+    pre_extracted_data_sequences = load_script_out_from_json(SNP_VIS_SAMPLES)
+    amazon_data = pre_extracted_data_sequences['AMZN']
+    sample = torch.tensor(np.array(amazon_data['sample']), dtype=torch.float32).unsqueeze(0)
+    seq_len = sample.size(1) // 2
+    samp = sample[ :, :seq_len].unsqueeze(-1)
+    lbl = sample[:, seq_len:].squeeze(0)
+    preds = []
+    for i in range(seq_len):
+        _, pred = best_model(samp)
+        preds.append(pred.detach().numpy().reshape(-1)[-1])
+        samp = pred
+    preds = np.array(preds)
+    originals = denormalize_sequence(np.array(lbl), 'AMZN')
+    preds = denormalize_sequence(preds, 'AMZN')
+    plt.title('Multi-Step Prediction')
+    plt.plot(originals, label='Original')
+    plt.plot(preds, label='Predictions')
+    plt.legend()
+    plt.show()
 
-def k_folds_train_predictor_model():
-    hidden_size = 16
-    input_size = 1
-    layers = 1
-    learning_rate = 0.001
-    clip = 5
-    epochs = 20
-    trainer = Predictor_Trainer()
-    dataset, test_set = load_snp_data_with_labels_for_kfolds()
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size = 100000, shuffle = False)
-    kf = KFold(n_splits=2, shuffle=True)
-    # model = LSTM_AE_PREDICTOR_V2(input_size, hidden_size, layers)
-    # optimizer = get_optimizer('Adam', model, learning_rate)
-    model_args = (input_size, hidden_size, layers)
-    optimizer_args = ('Adam', learning_rate)
-    # dl = torch.utils.data.DataLoader(dataset, batch_size = 128, shuffle = True)
-    # trainer.train(model, dl, optimizer, epochs, clip, 0.5)
-    model, test_loss, train_losses = kfolds_train(trainer, model_args, kf, dataset, optimizer_args, epochs, clip, 0.5)
-    print ("im here1")
-    final_test_loss = trainer.test(model, test_loader, 0.5)
-    print ("im here2")
-    torch.save(model, 'lstm_ae_snp500_model.pth')
-    print ("im here3")
-    save_script_out_to_json({'final_test_loss' : final_test_loss,
-                             'folds_test_loss' : test_loss,
-                            'train_loss' : train_losses}, 'scripts_out.json')
-    print ("im here4")
-    torch.save(test_set, 'scripts_test_data.pt')
-    print ("im here5")
 
-    
 
 
 def main():
-    k_folds_train_predictor_model()
-    # args = parse_args()
-    # if args.function == 'find_best_reconstruction_model':
-    #     find_best_reconstruction_model()
-    # elif args.function == 'find_best_prediction_model':
-    #     find_best_prediction_model()
-    # elif args.function == 'k_folds_find_best_reconstruction_model':
-    #     k_folds_find_best_reconstruction_model()
-    # elif args.function == 'k_folds_train_predictor_model':
-    #     k_folds_train_predictor_model()
-    # else:
-    #     raise ValueError('Invalid function')
+    args = parse_args()
+    if args.function == 'P3Q1_show_snp500_data':
+        #called by:
+        '''
+        python3 lstm_ae_snp500.py --function P3Q1_show_snp500_data
+        '''
+        P3Q1_show_snp500_data()
+    elif args.function == 'P3Q2_find_best_hyperparams_and_reconstruct_snp500_data':
+        #called by:
+        '''
+        python3 lstm_ae_snp500.py --function P3Q2_find_best_hyperparams_and_reconstruct_snp500_data --input_size 1 --epochs 10 --hidden_size 8 16 32 --learning_rate 0.1 0.01 0.001 --gradient_clipping 1 2 5 
+        '''
+        P3Q2_find_best_hyperparams_and_reconstruct_snp500_data(args)
+    elif args.function == 'P3Q3_train_prediction_model_and_plot_losses_and_predictions':
+        #called by:
+        '''
+        python3 lstm_ae_snp500.py --function P3Q3_train_prediction_model_and_plot_losses_and_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
+        '''
+        P3Q3_train_prediction_model_and_plot_losses_and_predictions(args)
+
+    elif args.function == 'P3Q4_train_predictor_model_and_perform_multi_step_predictions':
+        #called by:
+        '''
+        python3 lstm_ae_snp500.py --function P3Q4_train_predictor_model_and_perform_multi_step_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
+        '''
+        P3Q4_train_predictor_model_and_perform_multi_step_predictions(args)
+    else:
+        raise ValueError('Invalid function')
 
 
 if __name__ == '__main__':
