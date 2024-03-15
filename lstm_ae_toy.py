@@ -7,13 +7,13 @@ from logic.LSTMS import LSTM_AE
 from logic.Trainers import Basic_Trainer, kfolds_train
 
 
-def P1_Q1_plot_signal_vs_time():
+def plot_signal_vs_time():
     dataset = generate_syntethic_data()
     plt.plot(dataset[0])
     plt.show()
 
 
-def P1Q2_find_best_hyperparams_and_reconstruct_syntethic_data(args):
+def find_best_hyperparams_and_reconstruct_syntethic_data(args):
     args.model = 'LSTM_AE'
     dataset, testset = load_syntethic_data()
     best_model, _ = kfolds_train(args, dataset, tune_hyperparams=True)
@@ -32,18 +32,18 @@ def P1Q2_find_best_hyperparams_and_reconstruct_syntethic_data(args):
 
 def main():
     args = parse_args()
-    if args.function == 'P1_Q1_plot_signal_vs_time':
+    if args.function == 'plot_signal_vs_time':
         #called by:
         '''
-        python3 lstm_ae_toy.py --function P1_Q1_plot_signal_vs_time
+        python3 lstm_ae_toy.py --function plot_signal_vs_time
         '''
-        P1_Q1_plot_signal_vs_time()
-    elif args.function == 'P1Q2_find_best_hyperparams_and_reconstruct_syntethic_data':
+        plot_signal_vs_time()
+    elif args.function == 'find_best_hyperparams_and_reconstruct_syntethic_data':
         #called by:
         '''
-        python3 lstm_ae_toy.py --function P1Q2_find_best_hyperparams_and_reconstruct_syntethic_data --model LSTM_AE --input_size 1 --hidden_size 8 16 32 --batch_size 128 --epochs 100 --learning_rate 0.1 0.01 0.001 --gradient_clipping 1 2 5
+        python3 lstm_ae_toy.py --function find_best_hyperparams_and_reconstruct_syntethic_data --model LSTM_AE --input_size 1 --hidden_size 8 16 32 --batch_size 128 --epochs 100 --learning_rate 0.1 0.01 0.001 --gradient_clipping 1 2 5
         '''
-        P1Q2_find_best_hyperparams_and_reconstruct_syntethic_data(args)
+        find_best_hyperparams_and_reconstruct_syntethic_data(args)
 
 
 if __name__ == '__main__':

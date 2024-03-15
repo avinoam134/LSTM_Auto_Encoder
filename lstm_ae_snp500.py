@@ -23,7 +23,7 @@ SNP_PREDICT_TEST = path.join(SNP_PATH, 'snp500_pred_test.pt')
 
 
 
-def P3Q1_show_snp500_data():
+def show_snp500_data():
     amazon = generate_snp_company_with_dates('AMZN')
     googe = generate_snp_company_with_dates('GOOGL')
     data_dict = {"AMZN": amazon, "GOOGL": googe}
@@ -49,7 +49,7 @@ def find_best_reconstruction_hyperparams(args):
     save_script_out_to_json(res_dict, SNP_RECON_DATA)
     torch.save(testset, SNP_RECON_TEST)
 
-def P3Q2_find_best_hyperparams_and_reconstruct_snp500_data(args):
+def find_best_hyperparams_and_reconstruct_snp500_data(args):
     if not(args.dry_run):
         find_best_reconstruction_hyperparams(args)
     best_model = torch.load(SNP_RECON_MODEL)
@@ -83,7 +83,7 @@ def train_best_prediction_model(args):
 
 
 
-def P3Q3_train_prediction_model_and_plot_losses_and_predictions(args):
+def train_prediction_model_and_plot_losses_and_predictions(args):
     if not(args.dry_run):
         train_best_prediction_model(args)
     best_model = torch.load(SNP_PREDICT_MODEL).eval()
@@ -136,7 +136,7 @@ def P3Q3_train_prediction_model_and_plot_losses_and_predictions(args):
     ax[1,1].legend()
     plt.show()
 
-def P3Q4_train_predictor_model_and_perform_multi_step_predictions(args):
+def train_predictor_model_and_perform_multi_step_predictions(args):
     if not(args.dry_run):
         train_best_prediction_model(args)
     best_model = torch.load(SNP_PREDICT_MODEL)
@@ -165,31 +165,31 @@ def P3Q4_train_predictor_model_and_perform_multi_step_predictions(args):
 
 def main():
     args = parse_args()
-    if args.function == 'P3Q1_show_snp500_data':
+    if args.function == 'show_snp500_data':
         #called by:
         '''
-        python3 lstm_ae_snp500.py --function P3Q1_show_snp500_data
+        python3 lstm_ae_snp500.py --function show_snp500_data
         '''
-        P3Q1_show_snp500_data()
-    elif args.function == 'P3Q2_find_best_hyperparams_and_reconstruct_snp500_data':
+        show_snp500_data()
+    elif args.function == 'find_best_hyperparams_and_reconstruct_snp500_data':
         #called by:
         '''
-        python3 lstm_ae_snp500.py --function P3Q2_find_best_hyperparams_and_reconstruct_snp500_data --input_size 1 --epochs 10 --hidden_size 8 16 32 --learning_rate 0.1 0.01 0.001 --gradient_clipping 1 2 5 
+        python3 lstm_ae_snp500.py --function find_best_hyperparams_and_reconstruct_snp500_data --input_size 1 --epochs 10 --hidden_size 8 16 32 --learning_rate 0.1 0.01 0.001 --gradient_clipping 1 2 5 
         '''
-        P3Q2_find_best_hyperparams_and_reconstruct_snp500_data(args)
-    elif args.function == 'P3Q3_train_prediction_model_and_plot_losses_and_predictions':
+        find_best_hyperparams_and_reconstruct_snp500_data(args)
+    elif args.function == 'train_prediction_model_and_plot_losses_and_predictions':
         #called by:
         '''
-        python3 lstm_ae_snp500.py --function P3Q3_train_prediction_model_and_plot_losses_and_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
+        python3 lstm_ae_snp500.py --function train_prediction_model_and_plot_losses_and_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
         '''
-        P3Q3_train_prediction_model_and_plot_losses_and_predictions(args)
+        train_prediction_model_and_plot_losses_and_predictions(args)
 
-    elif args.function == 'P3Q4_train_predictor_model_and_perform_multi_step_predictions':
+    elif args.function == 'train_predictor_model_and_perform_multi_step_predictions':
         #called by:
         '''
-        python3 lstm_ae_snp500.py --function P3Q4_train_predictor_model_and_perform_multi_step_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
+        python3 lstm_ae_snp500.py --function train_predictor_model_and_perform_multi_step_predictions --input_size 1 --epochs 20 --hidden_size 32 --learning_rate 0.01 --gradient_clipping 5 
         '''
-        P3Q4_train_predictor_model_and_perform_multi_step_predictions(args)
+        train_predictor_model_and_perform_multi_step_predictions(args)
     else:
         raise ValueError('Invalid function')
 

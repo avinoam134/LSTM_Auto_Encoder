@@ -33,7 +33,7 @@ def find_best_hyperparams(args):
 
 
 
-def P2Q1_find_best_hyperparams_and_reconstruct(args):
+def find_best_hyperparams_and_reconstruct(args):
     if not args.dry_run:
         args.model = 'LSTM_AE_CLASSIFIER_V1'
         args.classification = False
@@ -58,7 +58,7 @@ def P2Q1_find_best_hyperparams_and_reconstruct(args):
     plt.show()
 
 
-def P2Q2_find_best_classification_model(args):
+def find_best_classification_model(args):
     if not args.dry_run:
         args.model = 'LSTM_AE_CLASSIFIER_V4'
         args.classification = True
@@ -80,7 +80,7 @@ def P2Q2_find_best_classification_model(args):
 
 
 
-def P2Q3_reconstruct_and_classify_over_1_input_size(args):
+def reconstruct_and_classify_over_1_input_size(args):
     if not args.dry_run:
         args.input_size = 1
         args.model = 'LSTM_AE_CLASSIFIER_V4'
@@ -113,24 +113,24 @@ def P2Q3_reconstruct_and_classify_over_1_input_size(args):
 
 def main():
     args = parse_args()
-    if args.function == 'P2Q1_find_best_hyperparams_and_reconstruct':
+    if args.function == 'find_best_hyperparams_and_reconstruct':
         #called by:
         '''
-        python3 lstm_ae_mnist.py --function P2Q1_find_best_hyperparams_and_reconstruct --model LSTM_AE_CLASSIFIER_V1 --input_size 28 --hidden_size 8 16 --epochs 10 --learning_rate 0.01 --gradient_clipping 5 --batch_size 128 
+        python3 lstm_ae_mnist.py --function find_best_hyperparams_and_reconstruct --model LSTM_AE_CLASSIFIER_V1 --input_size 28 --hidden_size 8 16 --epochs 10 --learning_rate 0.01 --gradient_clipping 5 --batch_size 128 
         '''
-        P2Q1_find_best_hyperparams_and_reconstruct(args)
-    elif args.function == 'P2Q2_find_best_classification_model':
+        find_best_hyperparams_and_reconstruct(args)
+    elif args.function == 'find_best_classification_model':
         #called by:
         '''
-        python3 lstm_ae_mnist.py --function P2Q2_find_best_classification_model --model LSTM_AE_CLASSIFIER_V4 --input_size 28 --hidden_size 8 16 --epochs 10 --learning_rate 0.1 0.01 --gradient_clipping 2 5 --batch_size 128 --reconstruction_dominance 0.5
+        python3 lstm_ae_mnist.py --function find_best_classification_model --model LSTM_AE_CLASSIFIER_V4 --input_size 28 --hidden_size 8 16 --epochs 10 --learning_rate 0.1 0.01 --gradient_clipping 2 5 --batch_size 128 --reconstruction_dominance 0.5
         '''
-        P2Q2_find_best_classification_model(args)
-    elif args.function == 'P2Q3_reconstruct_and_classify_over_1_input_size':
+        find_best_classification_model(args)
+    elif args.function == 'reconstruct_and_classify_over_1_input_size':
         #callled by:
         '''
-        python3 lstm_ae_mnist.py --function P2Q3_reconstruct_and_classify_over_1_input_size --model LSTM_AE_CLASSIFIER_V --input_size 1 --hidden_size 8 16 --epochs 10 --learning_rate 0.1 0.01 0.001 --gradient_clipping 2 5 --reconstruction_dominance 0.5
+        python3 lstm_ae_mnist.py --function reconstruct_and_classify_over_1_input_size --model LSTM_AE_CLASSIFIER_V --input_size 1 --hidden_size 8 16 --epochs 10 --learning_rate 0.1 0.01 0.001 --gradient_clipping 2 5 --reconstruction_dominance 0.5
         '''
-        P2Q3_reconstruct_and_classify_over_1_input_size(args)
+        reconstruct_and_classify_over_1_input_size(args)
     else:
         raise ValueError('Invalid function')
 
