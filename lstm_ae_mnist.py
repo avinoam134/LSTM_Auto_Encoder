@@ -93,7 +93,8 @@ def P2Q3_reconstruct_and_classify_over_1_input_size(args):
     trainer = Classifier_Trainer()
     test_results = trainer.test(best_model, test_loader, res_dict['reconstruction_dominance'])
     test_accuracy = test_results['accuracy']
-    test_samples, _ = next(iter(test_loader))
+    test_loader_small = torch.utils.data.DataLoader(testset, batch_size=2, shuffle=False)
+    test_samples, _ = next(iter(test_loader_small))
     test_samples_squeezed = test_samples.squeeze(1)
     test_samples_reconstruction, _ = best_model(test_samples_squeezed)
     recon = test_samples_reconstruction[:2].detach().numpy().reshape(2,28,28)
